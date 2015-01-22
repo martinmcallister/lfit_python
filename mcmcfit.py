@@ -167,6 +167,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     file = args.file
     toFit = args.fit
+
+    thisFile = aBug
     
     x,y,e = np.loadtxt(file,skiprows=16).T
     width = np.mean(np.diff(x))*np.ones_like(x)/2.
