@@ -193,6 +193,8 @@ if __name__ == "__main__":
     guessP = np.array([fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
                       exp1,exp2,tilt,yaw])
 
+    thisLine = aBadBug
+    
     # is our starting position legal
     if np.isinf( ln_prior(guessP) ):
         print 'Error: starting position violates priors'
