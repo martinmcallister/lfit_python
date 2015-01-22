@@ -158,7 +158,7 @@ def ln_prob(pars,phi,width,y,e,cv):
 
 if __name__ == "__main__":
 
-    
+
     #Input lightcurve data from txt file
     import argparse
     parser = argparse.ArgumentParser(description='Fit CV lightcurves with lfit')
@@ -168,8 +168,6 @@ if __name__ == "__main__":
     file = args.file
     toFit = args.fit
 
-    thisFile = aBug
-    
     x,y,e = np.loadtxt(file,skiprows=16).T
     width = np.mean(np.diff(x))*np.ones_like(x)/2.
     
