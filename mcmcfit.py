@@ -205,9 +205,9 @@ if __name__ == "__main__":
     
         npars = len(guessP)
         nwalkers = 50
-        nthreads = 8
+        nthreads = 1
         p0 = emcee.utils.sample_ball(guessP,0.05*guessP,size=nwalkers)
-        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,width,y,e,myCV])
+        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,width,y,e,myCV],threads=nthreads)
 
         #Burn-in
         nburn = 1000
