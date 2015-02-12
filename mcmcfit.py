@@ -62,13 +62,13 @@ def ln_prior(pars):
     lnp += prior.ln_prob(pars[4])
 
     #Wd eclipse width, dphi
-    tol = 1.0e-3
+    tol = 1.0e-6
     maxphi = roche.findphi(pars[4],90.0) #dphi when i is slightly less than 90
     prior = Prior('uniform',0.001,maxphi-tol)
     lnp += prior.ln_prob(pars[5])
 
     #Disc radius (XL1) 
-    prior = Prior('uniform',0.35,0.9)
+    prior = Prior('uniform',0.3,0.9)
     lnp += prior.ln_prob(pars[6])
     
     #Limb darkening
@@ -171,24 +171,24 @@ if __name__ == "__main__":
     x,y,e = np.loadtxt(file,skiprows=16).T
     width = np.mean(np.diff(x))*np.ones_like(x)/2.
     
-    q = 0.14248
-    dphi = 0.064003
-    rwd = 0.008196
-    ulimb = 0.346000
-    rdisc = 0.423139
-    rexp = 1.725406
-    az = 141.24466
-    frac = 0.244912
-    scale = 0.038624
+    q = 0.087049
+    dphi = 0.053844
+    rwd = 0.027545
+    ulimb = 0.35
+    rdisc = 0.3788224
+    rexp = 0.349158
+    az = 164.16167
+    frac = 0.139078
+    scale = 0.0231764
     exp1 = 2.0
     exp2 = 1.0
     tilt = 60.0
     yaw = 1.0
-    fwd = 0.0124172
-    fdisc = 0.0080908
-    fbs = 0.0266768
-    fd = 0.00111947
-    off = 0.000145788
+    fwd = 0.128650
+    fdisc = 0.048163
+    fbs = 0.0745461
+    fd = 0.001
+    off = -0.000078024
 
     guessP = np.array([fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
                       exp1,exp2,tilt,yaw])
