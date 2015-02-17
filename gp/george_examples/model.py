@@ -129,7 +129,7 @@ if __name__ == "__main__":
     pl.xlabel(r"$t$")
     pl.xlim(-5, 5)
     pl.title("simulated data")
-    pl.savefig("../_static/model/data.png", dpi=150)
+    pl.savefig("model_plots/data.pdf", dpi=150)
 
     # Fit assuming independent.
     print("Fitting independent")
@@ -144,15 +144,15 @@ if __name__ == "__main__":
     for s in samples[np.random.randint(len(samples), size=24)]:
         pl.plot(x, model(s[2:], x)+s[0]*x+s[1], color="#4682b4", alpha=0.3)
     pl.title("results assuming uncorrelated noise")
-    pl.savefig("../_static/model/ind-results.png", dpi=150)
+    pl.savefig("model_plots/ind-results.pdf", dpi=150)
 
     # Make the corner plot.
     labels = [r"$\alpha$", r"$\ell$", r"$\sigma^2$"]
     fig = triangle.corner(samples[:, 2:], truths=truth, labels=labels)
-    fig.savefig("../_static/model/ind-corner.png", dpi=150)
+    fig.savefig("model_plots/ind-corner.pdf", dpi=150)
 
     # Fit assuming GP.
-    print("Fitting GP")
+    print("Fitting assuming GP")
     data = (t, y, yerr)
     truth_gp = [0.0, 0.0] + truth
     sampler = fit_gp(truth_gp, data)
@@ -172,8 +172,8 @@ if __name__ == "__main__":
     pl.xlabel(r"$t$")
     pl.xlim(-5, 5)
     pl.title("results with Gaussian process noise model")
-    pl.savefig("../_static/model/gp-results.png", dpi=150)
+    pl.savefig("model_plots/gp-results.pdf", dpi=150)
 
     # Make the corner plot.
     fig = triangle.corner(samples[:, 2:], truths=truth, labels=labels)
-    fig.savefig("../_static/model/gp-corner.png", dpi=150)
+    fig.savefig("model_plots/gp-corner.pdf", dpi=150)

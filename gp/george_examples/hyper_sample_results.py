@@ -43,4 +43,4 @@ for i in range(50):
 
 ax.set_xlim(min(t), 2025.0)
 ax.set_ylim(min(y), 420.0)
-fig.savefig("../_static/hyper/mcmc.png", dpi=150)
+fig.savefig("hyper_plots/mcmc.pdf", dpi=150)

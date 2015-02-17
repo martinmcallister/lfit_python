@@ -31,8 +31,7 @@ ax.set_ylim(min(y), 369)
 ax.set_xlabel("year")
 ax.set_ylabel("CO$_2$ in ppm")
 fig.subplots_adjust(left=0.15, bottom=0.2, right=0.99, top=0.95)
-fig.savefig("../_static/hyper/data.png", dpi=150)
-fig.savefig("hyper-data.pdf")
+fig.savefig("hyper_plots/data.pdf", dpi=150)
 
 # Initialize the kernel.
 k1 = 66.0**2 * kernels.ExpSquaredKernel(67.0**2)
@@ -88,7 +87,7 @@ header = "| {{0:{0}s}} | {{1:10s}} | {{2:10s}} |".format(l).format(
 sep = "+" + "+".join(["-" * (l+2), "-" * 12, "-" * 12]) + "+"
 rows = ("\n"+sep+"\n").join(map(rf, zip(labels, p, rw)))
 table = "\n".join([sep, header, sep.replace("-", "="), rows, sep])
-with open("../_static/hyper/results.txt", "w") as f:
+with open("hyper_results.txt", "w") as f:
     f.write(table)
 
 # Compute the prediction into the future.
@@ -100,5 +99,4 @@ std = np.sqrt(np.diag(cov))
 ax.fill_between(x, mu+std, mu-std, color="k", alpha=0.4)
 ax.set_xlim(min(t), 2025.0)
 ax.set_ylim(min(y), 400.0)
-fig.savefig("../_static/hyper/figure.png", dpi=150)
-fig.savefig("hyper-figure.pdf", dpi=150)
+fig.savefig("hyper_plots/figure.pdf", dpi=150)
