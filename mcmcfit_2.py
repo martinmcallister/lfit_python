@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+import matplotlib.gridspec as gridspec
 from trm import roche
 import sys
 import lfit
@@ -38,29 +40,16 @@ def model(pars,phi,width,cv):
     # and the same is true
     return cv.calcFlux(pars,phi,width)
 
-def model_gp(params, x):
-    amp, loc, sig2 = params
-    return amp * np.exp(-0.5 * (x - loc) ** 2 / sig2)
 
-def lnprior_base(params):
-    amp, loc, sig2 = params
-    if not -10 < amp < 10:
-        return -np.inf
-    if not -5 < loc < 5:
-        return -np.inf
-    if not 0 < sig2 < 3.0:
-        return -np.inf
-    return 0.0
-
-def lnprior_gp(params):
+def ln_prior_gp(params):
     lna, lntau = params[:2]
     if not -5 < lna < 5:
         return -np.inf
-    if not -5 < lntau < 5:
+    if not -10 < lntau < 10:
         return -np.inf
-    return lnprior_base(params[2:])
+    return ln_prior_base(params[2:])
 
-def ln_prior(pars):
+def ln_prior_base(pars):
 
     lnp = 0.0
 
@@ -124,7 +113,7 @@ def ln_prior(pars):
        if alpha < 0: alpha = 90-alpha
        tangent = alpha + 90 # disc tangent
     
-       prior = Prior('uniform',max(0,tangent-slop),min(180,tangent+slop))
+       prior = Prior('uniform',max(0,tangent-slop),min(178,tangent+slop))
        lnp += prior.ln_prob(pars[10])
     except:
        lnp += -np.inf
@@ -166,50 +155,87 @@ def chisq(y,yfit,e):
 def reducedChisq(y,yfit,e,pars):
     return chisq(y,yfit, e) / (len(y) - len(pars) - 1)
 
-def lnlike_gp(params, x, y, e):
+def lnlike_gp(params, phi, width, y, e, cv):
     a, tau = np.exp(params[:2])
     gp = george.GP(a * kernels.Matern32Kernel(tau))
-    gp.compute(x, e)
-    return gp.lnlikelihood(y - model_gp(params[2:], x))
+    gp.compute(phi, e)
+    resids = y - model(params[2:],phi,width,cv)
+    if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
+        print params[2:]
+        raise Exception('model gave nan or inf answers')
+    return gp.lnlikelihood(resids)
 
-def ln_likelihood(pars,phi,width,y,e,cv):
-    yfit = model(pars,phi,width,cv)
-    return -0.5*(np.sum( np.log( 2.0*np.pi*e**2 ) ) + chisq(y,yfit,e))
-
-def ln_prob(pars,phi,width,y,e,cv):
-    lnp = ln_prior(pars)
-    if np.isfinite(lnp):
-        return lnp + ln_likelihood(pars,phi,width,y,e,cv)
-    else:
-        return lnp
-
-def lnprob_gp(params, x, y, e):
-    lp = lnprior_gp(params)
+def lnprob_gp(params, phi, width, y, e, cv):
+    lp = ln_prior_gp(params)
     if not np.isfinite(lp):
         return -np.inf
-    return lp + lnlike_gp(params, x, y, e)
+    return lp + lnlike_gp(params, phi, width, y, e, cv)
 
-def fit_gp(initial, data, nwalkers):
-    ndim_gp = len(initial)
-    p0_gp = [np.array(initial) + 1e-8 * np.random.randn(ndim_gp)
-          for i in xrange(nwalkers)]
-    sampler_gp = emcee.EnsembleSampler(nwalkers, ndim_gp, lnprob_gp, args=data, threads=6)
+def fit_gp(initialGuess, phi, width, y, e, cv, mcmcPars=(100,300,300,500,6)):
+    nwalkers, nBurn1, nBurn2, nProd, nThreads = mcmcPars
+    ndim_gp = len(initialGuess)
+    pos = emcee.utils.sample_ball(initialGuess,0.01*initialGuess,size=nwalkers)
+    sampler_gp = emcee.EnsembleSampler(nwalkers, ndim_gp, lnprob_gp, args=(phi,width,y,e,cv), threads=nThreads)
 
     print("Running burn-in")
-    p0_gp, lnp, _ = sampler_gp.run_mcmc(p0_gp, 500)
+    pos, prob, state = run_burnin(sampler_gp,pos,nBurn1)
     sampler_gp.reset()
 
     print("Running second burn-in")
-    params = p0_gp[np.argmax(lnp)]
-    p0_gp = [params + 1e-8 * np.random.randn(ndim_gp) for i in xrange(nwalkers)]
-    p0_gp, _, _ = sampler_gp.run_mcmc(p0_gp, 500)
+    # choose the highest probability point in first Burn-In as starting point
+    pos = pos[np.argmax(prob)]
+    pos = emcee.utils.sample_ball(pos,0.01*pos,size=nwalkers)
+    pos, prob, state = run_burnin(sampler_gp,pos,nBurn2)
     sampler_gp.reset()
 
     print("Running production")
-    p0_gp, _, _ = sampler_gp.run_mcmc(p0_gp, 1000)
+    sampler_gp = run_mcmc_save(sampler_gp,pos,nProd,state,"chain.txt")
 
     return sampler_gp
 
+def plot_result(bestFit, x, width, y, e, cv):
+
+    #calc residuals
+    fit = model(bestFit[2:],x,width,cv)
+    res = y-fit
+
+    #fine scale fit for plotting
+    xf = np.linspace(x.min(),x.max(),1000)
+    wf = 0.5*np.mean(np.diff(xf))*np.ones_like(xf)
+    yf = model(bestFit[2:],xf,wf,cv)
+    
+    # GP
+    a,tau = np.exp(bestFit[:2])
+    gp = george.GP(a * kernels.Matern32Kernel(tau))
+    gp.compute(x,e)
+
+    # condition GP on residuals, and draw conditional samples
+    samples = gp.sample_conditional(res, x, size=300)
+    mu      = np.mean(samples,axis=0)
+    std     = np.std(samples,axis=0)
+
+    # set up plot subplots
+    gs = gridspec.GridSpec(2,1,height_ratios=[3,1])
+    gs.update(hspace=0.0)
+    ax_main = plt.subplot(gs[0,0])
+    ax_res = plt.subplot(gs[1,0],sharex=ax_main)
+
+    #main plot
+    ax_main.plot(xf,yf,'k-')
+    ax_main.errorbar(x,y-mu,yerr=e,fmt='.',color='k',capsize=0)
+
+    #residual plot
+    ax_res.errorbar(x,res,yerr=e,fmt='.',color='k',capsize=0)
+    ax_res.fill_between(x,mu+2.0*std,mu-2.0*std,color='r',alpha=0.4)
+
+    #fix the x-axes
+    plt.setp(ax_main.get_xticklabels(),visible=False)
+    ax_res.yaxis.set_major_locator(mpl.ticker.MaxNLocator(4,prune='both'))
+    ax_res.set_xlabel('MJD (days)')
+    ax_res.set_ylabel('Residuals')
+    ax_main.set_ylabel('Flux (mJy)')
+    plt.savefig('bestFit.pdf')
+    
 if __name__ == "__main__":
 
 
@@ -244,37 +270,32 @@ if __name__ == "__main__":
     fd = 0.001
     off = -0.000078024
 
-    guessP = np.array([fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
+    #also need hyperparameters for GP
+    amp_gp = np.log( 0.05*y.mean() ) #5% of mean flux
+    tau_gp = np.log( 60./86400. ) #one minute
+    
+    guessP = np.array([amp_gp,tau_gp,fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
                       exp1,exp2,tilt,yaw])
 
     # is our starting position legal
-    if np.isinf( ln_prior(guessP) ):
+    if np.isinf( ln_prior_gp(guessP) ):
         print 'Error: starting position violates priors'
         sys.exit(-1)
         
     # initialize a cv with these params
-    myCV = lfit.CV(guessP)
+    myCV = lfit.CV(guessP[2:])
 
     if toFit:
-    
         npars = len(guessP)
         nwalkers = 50
-        nthreads = 1
-        p0 = emcee.utils.sample_ball(guessP,0.05*guessP,size=nwalkers)
-        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,width,y,e,myCV],threads=nthreads)
-
-        #Burn-in
+        nthreads = 4
         nburn = 50
-        pos, prob, state = run_burnin(sampler,p0,nburn)
-
-    
-        #Production
-        sampler.reset()
         nprod = 100
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain.txt")  
-        chain = flatchain(sampler.chain,npars,thin=4)
-        
-        nameList = ['fwd','fdisc','fbs','fd','q','dphi','rdisc','ulimb','rwd','scale', \
+        mcmcPars = (nwalkers,nburn,nburn,nprod,nthreads)
+        sampler = fit_gp(guessP, x, width, y, e, myCV, mcmcPars)
+
+        chain = flatchain(sampler.chain,npars,thin=20)
+        nameList = ['lna','lntau','fwd','fdisc','fbs','fd','q','dphi','rdisc','ulimb','rwd','scale', \
                     'az','frac','rexp','off','exp1','exp2','tilt','yaw']
         bestPars = []
         for i in range(npars):
@@ -287,44 +308,6 @@ if __name__ == "__main__":
         plt.close()
     else:
         bestPars = guessP
-        
-    #Fit assuming GP
-    print("Fitting assuming GP")
-    data = (x, y, e)
-    truth = [0.0, 0.0, 0.0]
-    truth_gp = [0.0, 0.0] + truth
-    sampler_gp = fit_gp(truth_gp, data, 16)
-    
-    #Plot gp model & data
-    print("Making gp plot")
-    samples = sampler_gp.flatchain
-    xf = np.linspace(x.min(),x.max(),1000)
-    wf = 0.5*np.mean(np.diff(xf))*np.ones_like(xf)
-    plt.figure()
-    plt.subplot(3,1,(1,2))
-    plt.errorbar(x,y,yerr=e,fmt='.',color='k',capsize=0)
-    for s in samples[np.random.randint(len(samples), size=24)]:
-        gp = george.GP(np.exp(s[0])*kernels.Matern32Kernel(np.exp(s[1])))
-        gp.compute(x,e)
-        yf_gp = gp.sample_conditional(y - model_gp(s[2:], x), xf) + model_gp(s[2:], xf)
-        plt.plot(xf,yf_gp,'r-')
-    #plt.xlabel('Orbital Phase')
-    plt.ylabel('Flux')
-    plt.xlim(-0.1,0.15)
-    
-    #Plot cv model & data
-    plt.subplot(3,1,(1,2))
-    yf = model(bestPars,xf,wf,myCV)
-    plt.plot(xf,yf,'b-')
-    plt.errorbar(x,y,yerr=e,fmt='.',color='k',capsize=0)
-    #plt.xlabel('Orbital Phase')
-    plt.ylabel('Flux')
-    plt.xlim(-0.1,0.15)
 
-    plt.subplot(3,1,3)
-    plt.plot(xf,yf_gp-yf,'k-')
-    plt.xlabel('Orbital Phase')
-    plt.ylabel('Flux')
-    plt.xlim(-0.1,0.15)
-    plt.show()
+    plot_result(bestPars, x, width, y, e, myCV)
     
