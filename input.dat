@@ -1,0 +1,137 @@
+# MCMC run parameters
+nburn    = 1000 # number of steps to use in burn-in phase
+nprod    = 1000 # number of steps to use in production phase
+nwalkers = 200  # must be even multiple of npars (npars = 4 + 10*necl or 4+14*necl)
+nthread  = 6    # number of CPU threads to use
+scatter  = 0.01 # fractional scatter to add to starting ball of parameters
+fit      = 0 # actually fit (1), or just plot model as specified (0)
+
+# eclipse independent parameters 
+# all model parameters have both a starting value and a prior
+# priors are specified by type, val1, val2
+# type can be one of 'gauss', 'uniform' or 'log_uniform'
+# if type = 'gauss', val1 and val2 represent mean and standard deviation of prior
+# if type = 'uniform' or 'log_uniform', val1 and val2 represent the limits of prior
+# finally, we indicate if parameter is to be fit (1) or not (0)
+q     = 0.194653 uniform 0.001 3.5 1 # 
+dphi  = 0.057552 uniform 0.001 0.08 1  # 
+rwd   = 0.014626 uniform 0.0001 0.1 1 # 
+ulimb = 0.345 uniform 0.2 0.8 0 # limb darkening for wd. NOT FIT
+
+# remaining parameters vary from eclipse to eclipse
+neclipses = 6
+
+# what phases to plot/fit
+phi_start = -0.9
+phi_end = 0.15
+
+# complex bright spot, yes or no?
+complex = 1
+
+# the following lines should have an entry for each individual eclipse
+file_1  = data/sdss0901_1.txt  # file containing data to fit. 3 columns - MJD, flux, err
+out_1   = ind_fit_1.dat # file to write containing data and best fit
+fwd_1 = 0.022041 uniform 0.001 0.5 1 # 
+fdisc_1 = 0.008464 uniform 0.001 0.5 1 # 
+fbs_1 = 0.023923 uniform 0.001 0.5 1 # 
+fd_1 = 0.002376 uniform 0.0 0.5 1 # 
+rdisc_1 = 0.451559 uniform 0.3 0.9 1 # 
+scale_1 = 0.015795 uniform 0.0001 0.5 1 # 
+az_1 = 110.133132 uniform 1 178.0 1 # 
+frac_1 = 0.187862 uniform 0.001 0.9 1 # 
+rexp_1 = 1.396882 uniform 0.001 2.5 1 # 
+off_1 = -0.001277 uniform -0.1 0.1 1 # 
+exp1_1 = 0.401424 uniform 0.01 4.0 1 # 
+exp2_1 = 0.932837 uniform 0.01 3.0 1 # 
+tilt_1 = 55.886602 uniform 0.0 165.0 1 # 
+yaw_1 = 36.497020 uniform -90.0 90.0 1 # 
+
+file_2  = data/sdss0901_2.txt  # file containing data to fit. 3 columns - MJD, flux, err
+out_2   = ind_fit_2.dat # file to write containing data and best fit
+fwd_2 = 0.022041 uniform 0.001 0.5 1 # 
+fdisc_2 = 0.008464 uniform 0.001 0.5 1 # 
+fbs_2 = 0.023923 uniform 0.001 0.5 1 # 
+fd_2 = 0.002376 uniform 0.0 0.5 1 # 
+rdisc_2 = 0.451559 uniform 0.3 0.9 1 # 
+scale_2 = 0.015795 uniform 0.0001 0.5 1 # 
+az_2 = 110.133132 uniform 1 178.0 1 # 
+frac_2 = 0.187862 uniform 0.001 0.9 1 # 
+rexp_2 = 1.396882 uniform 0.001 2.5 1 # 
+off_2 = -0.001277 uniform -0.1 0.1 1 # 
+exp1_2 = 0.401424 uniform 0.01 4.0 1 # 
+exp2_2 = 0.932837 uniform 0.01 3.0 1 # 
+tilt_2 = 55.886602 uniform 0.0 165.0 1 # 
+yaw_2 = 36.497020 uniform -90.0 90.0 1 # 
+
+file_3  = data/sdss0901_3.txt  # file containing data to fit. 3 columns - MJD, flux, err
+out_3   = ind_fit_3.dat # file to write containing data and best fit
+fwd_3 = 0.022041 uniform 0.001 0.5 1 # 
+fdisc_3 = 0.008464 uniform 0.001 0.5 1 # 
+fbs_3 = 0.023923 uniform 0.001 0.5 1 # 
+fd_3 = 0.002376 uniform 0.0 0.5 1 # 
+rdisc_3 = 0.451559 uniform 0.3 0.9 1 # 
+scale_3 = 0.015795 uniform 0.0001 0.5 1 # 
+az_3 = 110.133132 uniform 1 178.0 1 # 
+frac_3 = 0.187862 uniform 0.001 0.9 1 # 
+rexp_3 = 1.396882 uniform 0.001 2.5 1 # 
+off_3 = -0.001277 uniform -0.1 0.1 1 # 
+exp1_3 = 0.401424 uniform 0.01 4.0 1 # 
+exp2_3 = 0.932837 uniform 0.01 3.0 1 # 
+tilt_3 = 55.886602 uniform 0.0 165.0 1 # 
+yaw_3 = 36.497020 uniform -90.0 90.0 1 # 
+
+file_4  = data/sdss0901_4.txt  # file containing data to fit. 3 columns - MJD, flux, err
+out_4   = ind_fit_4.dat # file to write containing data and best fit
+fwd_4 = 0.022041 uniform 0.001 0.5 1 # 
+fdisc_4 = 0.008464 uniform 0.001 0.5 1 # 
+fbs_4 = 0.023923 uniform 0.001 0.5 1 # 
+fd_4 = 0.002376 uniform 0.0 0.5 1 # 
+rdisc_4 = 0.451559 uniform 0.3 0.9 1 # 
+scale_4 = 0.015795 uniform 0.0001 0.5 1 # 
+az_4 = 110.133132 uniform 1 178.0 1 # 
+frac_4 = 0.187862 uniform 0.001 0.9 1 # 
+rexp_4 = 1.396882 uniform 0.001 2.5 1 # 
+off_4 = -0.001277 uniform -0.1 0.1 1 # 
+exp1_4 = 0.401424 uniform 0.01 4.0 1 # 
+exp2_4 = 0.932837 uniform 0.01 3.0 1 # 
+tilt_4 = 55.886602 uniform 0.0 165.0 1 # 
+yaw_4 = 36.497020 uniform -90.0 90.0 1 # 
+
+file_5  = data/sdss0901_5.txt  # file containing data to fit. 3 columns - MJD, flux, err
+out_5  = ind_fit_5.dat # file to write containing data and best fit
+fwd_5 = 0.022041 uniform 0.001 0.5 1 # 
+fdisc_5 = 0.008464 uniform 0.001 0.5 1 # 
+fbs_5 = 0.023923 uniform 0.001 0.5 1 # 
+fd_5 = 0.002376 uniform 0.0 0.5 1 # 
+rdisc_5 = 0.451559 uniform 0.3 0.9 1 # 
+scale_5 = 0.015795 uniform 0.0001 0.5 1 # 
+az_5 = 110.133132 uniform 1 178.0 1 # 
+frac_5 = 0.187862 uniform 0.001 0.9 1 # 
+rexp_5 = 1.396882 uniform 0.001 2.5 1 # 
+off_5 = -0.001277 uniform -0.1 0.1 1 # 
+exp1_5 = 0.401424 uniform 0.01 4.0 1 # 
+exp2_5 = 0.932837 uniform 0.01 3.0 1 # 
+tilt_5 = 55.886602 uniform 0.0 165.0 1 # 
+yaw_5 = 36.497020 uniform -90.0 90.0 1 # 
+
+file_6  = data/sdss0901_6.txt  # file containing data to fit. 3 columns - MJD, flux, err
+out_6  = ind_fit_6.dat # file to write containing data and best fit
+fwd_6 = 0.022041 uniform 0.001 0.5 1 # 
+fdisc_6 = 0.008464 uniform 0.001 0.5 1 # 
+fbs_6 = 0.023923 uniform 0.001 0.5 1 # 
+fd_6 = 0.002376 uniform 0.0 0.5 1 # 
+rdisc_6 = 0.451559 uniform 0.3 0.9 1 # 
+scale_6 = 0.015795 uniform 0.0001 0.5 1 # 
+az_6 = 110.133132 uniform 1 178.0 1 # 
+frac_6 = 0.187862 uniform 0.001 0.9 1 # 
+rexp_6 = 1.396882 uniform 0.001 2.5 1 # 
+off_6 = -0.001277 uniform -0.1 0.1 1 # 
+exp1_6 = 0.401424 uniform 0.01 4.0 1 # 
+exp2_6 = 0.932837 uniform 0.01 3.0 1 # 
+tilt_6 = 55.886602 uniform 0.0 165.0 1 # 
+yaw_6 = 36.497020 uniform -90.0 90.0 1 # 
+
+
+
+
+
