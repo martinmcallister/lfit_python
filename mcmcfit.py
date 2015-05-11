@@ -170,8 +170,8 @@ def reducedChisq(y,yfit,e,pars):
 
 def lnlike_gp(params, phi, width, y, e, cv):
     a, tau = np.exp(params[:2])
-    kernel = a * kernels.Matern32Kernel(tau)
-    #kernel = a * kernels.ExpSquaredKernel(tau)
+    #kernel = a * kernels.Matern32Kernel(tau)
+    kernel = a * kernels.ExpSquaredKernel(tau)
     gp = george.GP(kernel, solver=george.HODLRSolver)
     gp.compute(phi, e)
     resids = y - model(params[2:],phi,width,cv)
@@ -223,8 +223,8 @@ def plot_result(bestFit, x, width, y, e, cv):
     
     #GP
     a,tau = np.exp(bestFit[:2])
-    kernel = a * kernels.Matern32Kernel(tau)
-    #kernel = a * kernels.ExpSquaredKernel(tau)
+    #kernel = a * kernels.Matern32Kernel(tau)
+    kernel = a * kernels.ExpSquaredKernel(tau)
     gp = george.GP(kernel, solver=george.HODLRSolver)
     gp.compute(x,e)
 
@@ -269,7 +269,7 @@ def parseStartPars(file):
     newDict = {}
     for line in f:
         k,v = line.strip().split('=')
-        newDict[k.strip()] = v.strip()
+        newDict[k.strip()] = float(v.strip())
     return newDict
     
 if __name__ == "__main__":
@@ -311,13 +311,8 @@ if __name__ == "__main__":
     fbs = parDict['fbs']
     fd = parDict['fd']
     off = parDict['off']
-
-    #also need hyperparameters for GP
-    #amp_gp = np.log( 0.05*y.mean() ) #5% of mean flux
-    #tau_gp = np.log( 30./86400. ) #30 secs
-    #print tau_gp
-    amp_gp = -6.437
-    tau_gp = -7.925
+    amp_gp = parDict['amp_gp']
+    tau_gp = parDict['tau_gp']
     
     guessP = np.array([amp_gp,tau_gp,fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
                       exp1,exp2,tilt,yaw])
