@@ -281,6 +281,10 @@ if __name__ == "__main__":
     parser.add_argument('file',action='store',help='input file (x,y,e)')
     parser.add_argument('parfile',action='store',help='starting parameters')
     parser.add_argument('-f','--fit',action='store_true',help='actually fit, otherwise just plot')
+    parser.add_argument('-nw','--nwalkers',action='store',help='number of walkers', type=int, default=100)
+    parser.add_argument('-nt','--nthreads',action='store',help='number of threads', type=int, default=6)
+    parser.add_argument('-nb','--nburn',action='store',help='number of burn steps', type=int, default=5000)
+    parser.add_argument('-np','--nprod',action='store',help='number of prod steps', type=int, default=5000)
     args = parser.parse_args()
     file = args.file
     toFit = args.fit
@@ -288,7 +292,6 @@ if __name__ == "__main__":
     x,y,e = np.loadtxt(file,skiprows=16).T
     width = np.mean(np.diff(x))*np.ones_like(x)/2.
     
-    # PHL1445 average LC
     parDict = parseStartPars(args.parfile)
     q = parDict['q']
     dphi = parDict['dphi']
@@ -337,11 +340,8 @@ if __name__ == "__main__":
 
     if toFit:
         npars = len(guessP)
-        nwalkers = 100
-        nthreads = 6
-        nburn = 5000
-        nprod = 5000
-        mcmcPars = (nwalkers,nburn,nburn,nprod,nthreads)
+       
+        mcmcPars = (args.nwalkers,args.nburn,args.nburn,args.nprod,args.nthreads)
         sampler = fit_gp(guessP, x, width, y, e, myCV, mcmcPars)
 
         chain = flatchain(sampler.chain,npars,thin=5)
