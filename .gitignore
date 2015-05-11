@@ -1,0 +1,7 @@
+*.ps
+*.pdf
+*.pyc
+*~
+data/**
+gp/**
+Output/**
