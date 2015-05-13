@@ -63,10 +63,13 @@ def ln_prior(pars):
 
     #Wd eclipse width, dphi
     tol = 1.0e-6
-    maxphi = roche.findphi(pars[4],90.0) #dphi when i is slightly less than 90
-    prior = Prior('uniform',0.001,maxphi-tol)
-    lnp += prior.ln_prob(pars[5])
-
+    try:
+        maxphi = roche.findphi(pars[4],90.0) #dphi when i is slightly less than 90
+        prior = Prior('uniform',0.001,maxphi-tol)
+        lnp += prior.ln_prob(pars[5])
+    except:
+        lnp += -np.inf
+        
     #Disc radius (XL1) 
     prior = Prior('uniform',0.3,0.9)
     lnp += prior.ln_prob(pars[6])
@@ -86,12 +89,13 @@ def ln_prior(pars):
 
     #BS az
     slop=40.0
-    # find position of bright spot where it hits disc
-    xl1 = roche.xl1(pars[4]) # xl1/a
-    rd_a = pars[6]*xl1
+
     # Does stream miss disc? (disc/a < 0.2 or > 0.65 )
     # if so, Tom's code will fail
     try:
+       # find position of bright spot where it hits disc
+       xl1 = roche.xl1(pars[4]) # xl1/a
+       rd_a = pars[6]*xl1
        x,y,vx,vy = roche.bspot(pars[4],rd_a)
             
        # find tangent to disc at this point
@@ -151,7 +155,10 @@ def ln_likelihood(pars,phi,width,y,e,cv):
 def ln_prob(pars,phi,width,y,e,cv):
     lnp = ln_prior(pars)
     if np.isfinite(lnp):
-        return lnp + ln_likelihood(pars,phi,width,y,e,cv)
+        try:
+            return lnp + ln_likelihood(pars,phi,width,y,e,cv)
+        except:
+            return -np.inf
     else:
         return lnp
     
@@ -172,7 +179,7 @@ if __name__ == "__main__":
     width = np.mean(np.diff(x))*np.ones_like(x)/2.
     
     q = 0.087049
-    dphi = 0.053844
+    dphi = 0.058844
     rwd = 0.027545
     ulimb = 0.35
     rdisc = 0.3788224
@@ -184,9 +191,9 @@ if __name__ == "__main__":
     exp2 = 1.0
     tilt = 60.0
     yaw = 1.0
-    fwd = 0.128650
-    fdisc = 0.048163
-    fbs = 0.0745461
+    fwd = 0.022
+    fdisc = 0.002163
+    fbs = 0.022
     fd = 0.001
     off = -0.000078024
 
@@ -210,13 +217,13 @@ if __name__ == "__main__":
         sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,width,y,e,myCV],threads=nthreads)
 
         #Burn-in
-        nburn = 1000
+        nburn = 100
         pos, prob, state = run_burnin(sampler,p0,nburn)
 
     
         #Production
         sampler.reset()
-        nprod = 1000
+        nprod = 100
         sampler = run_mcmc_save(sampler,pos,nprod,state,"chain.txt")  
         chain = flatchain(sampler.chain,npars,thin=4)
         
