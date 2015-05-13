@@ -90,8 +90,13 @@ def ln_prior_base(pars):
         lnp += -np.inf
 
     #Disc radius (XL1) 
-    prior = Prior('uniform',0.3,0.9)
-    lnp += prior.ln_prob(pars[6])
+    try:
+        xl1 = roche.xl1(pars[4]) # xl1/a
+        prior = Prior('uniform',0.25,0.46/xl1)
+        lnp += prior.ln_prob(pars[6])
+    except:
+        # we get here when roche.findphi raises error - usually invalid q
+        lnp += -np.inf
     
     #Limb darkening
     prior = Prior('gauss',0.35,0.005)
@@ -103,7 +108,7 @@ def ln_prior_base(pars):
 
     #BS scale (XL1)
     rwd = pars[8]
-    prior = Prior('uniform',rwd/3.,0.5)
+    prior = Prior('log_uniform',rwd/3.,rwd*3.)
     lnp += prior.ln_prob(pars[9])
 
     #BS az
@@ -149,7 +154,7 @@ def ln_prior_base(pars):
         lnp += prior.ln_prob(pars[14])
 
         #BS exp2
-        prior = Prior('uniform',0.01,3.0)
+        prior = Prior('uniform',0.9,3.0)
         lnp += prior.ln_prob(pars[15])
 
         #BS tilt angle
@@ -170,8 +175,8 @@ def reducedChisq(y,yfit,e,pars):
 
 def lnlike_gp(params, phi, width, y, e, cv):
     a, tau = np.exp(params[:2])
-    #kernel = a * kernels.Matern32Kernel(tau)
-    kernel = a * kernels.ExpSquaredKernel(tau)
+    kernel = a * kernels.Matern32Kernel(tau)
+    #kernel = a * kernels.ExpSquaredKernel(tau)
     gp = george.GP(kernel, solver=george.HODLRSolver)
     gp.compute(phi, e)
     resids = y - model(params[2:],phi,width,cv)
@@ -223,8 +228,8 @@ def plot_result(bestFit, x, width, y, e, cv):
     
     #GP
     a,tau = np.exp(bestFit[:2])
-    #kernel = a * kernels.Matern32Kernel(tau)
-    kernel = a * kernels.ExpSquaredKernel(tau)
+    kernel = a * kernels.Matern32Kernel(tau)
+    #kernel = a * kernels.ExpSquaredKernel(tau)
     gp = george.GP(kernel, solver=george.HODLRSolver)
     gp.compute(x,e)
 
@@ -258,7 +263,7 @@ def plot_result(bestFit, x, width, y, e, cv):
     ax_res.yaxis.set_major_locator(mpl.ticker.MaxNLocator(4,prune='both'))
     ax_dat.set_ylabel('Flux (mJy)')
     ax_dat_mod.set_ylabel('Flux (mJy)')
-    ax_res.set_xlabel('MJD (days)')
+    ax_res.set_xlabel('Orbital Period')
     ax_res.set_ylabel('Residuals')
     plt.xlim(-0.1,0.15)
     plt.savefig('bestFit.pdf')
