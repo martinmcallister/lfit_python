@@ -191,8 +191,10 @@ def kernelCalc(x1,x2,pars):
     We assume the points across changepoints are uncorrelated, 
     and that the amplitude of the GP inside eclipse is very small'''
     amp, tau, dphi, phi0 = pars
+    kernel='Matern32'
+
     # use numpy broadcasting to create 2d array of time differences between x1 and x2
-    rij = -0.5*(x1[:,np.newaxis]-x2[np.newaxis,:])**2 / tau**2
+    rij = (x1[:,np.newaxis]-x2[np.newaxis,:])**2 / tau
 
     # calculate masks which select only those points in eclipse
     mask1 = calcWdEclipseMask(dphi,phi0,x1)
@@ -203,9 +205,12 @@ def kernelCalc(x1,x2,pars):
     bothEclipsed = np.logical_and(mask1[:,np.newaxis] , mask2[np.newaxis,:])
     oneEclipsed  = np.logical_xor(mask1[:,np.newaxis] , mask2[np.newaxis,:])
     
-    # simple exp squared kernel
-    vij = amp*np.exp(rij)
-    
+    # calculate kernel
+    if kernel == 'ExpSquared':
+        vij = amp*np.exp(-0.5*rij)
+    elif kernel == 'Matern32':
+        vij = amp*(1.0+np.sqrt(3*rij))*np.exp(-np.sqrt(3*rij))
+            
     # normal amplitude if both out of eclipse
     # reduced amplitude for both in eclipse
     # zero for one in eclipse, one not
@@ -218,7 +223,8 @@ def createGP(params,phi):
     dphi, phiOff = params[7],params[15]
     
     # custom kernel with changepoints at WD eclipse
-    kernel = kernels.PythonKernel(kernelCalc,pars=(a,tau,dphi,phiOff))
+    kernel = kernels.PythonKernel(kernelCalc,\
+        pars=(a,tau,dphi,phiOff))
 
     # create GPs using this kernel
     gp  = george.GP(kernel)
