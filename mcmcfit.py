@@ -47,10 +47,8 @@ def ln_prior_gp(params):
     lnp = 0.0
     
     prior = Prior('uniform',-15,10)
-    #prior = Prior('gauss',-6.437,0.001)
     lnp += prior.ln_prob(lna)
     prior = Prior('uniform',-7.97,-6.57) #flickering timescale 30s to 2 mins
-    #prior = Prior('gauss',-7.925,0.001)
     lnp += prior.ln_prob(lntau)
     
     return lnp + ln_prior_base(params[2:])
@@ -91,11 +89,19 @@ def ln_prior_base(pars):
 
     #Disc radius (XL1) 
     try:
+<<<<<<< HEAD
         xl1 = roche.xl1(pars[4]) # xl1/a
         prior = Prior('uniform',0.25,0.46/xl1)
         lnp += prior.ln_prob(pars[6])
     except:
         # we get here when roche.findphi raises error - usually invalid q
+=======
+        xl1 = roche.xl1(pars[4]) 
+        prior = Prior('uniform',0.25,0.46/xl1)
+        lnp += prior.ln_prob(pars[6])
+    except:
+        # we get where when roche.findphi raises error - usually invalid q
+>>>>>>> d24c3c2e73963e43dbb6b97e65bdfad6c0cb6126
         lnp += -np.inf
     
     #Limb darkening
@@ -173,19 +179,75 @@ def chisq(y,yfit,e):
 def reducedChisq(y,yfit,e,pars):
     return chisq(y,yfit, e) / (len(y) - len(pars) - 1)
 
-def lnlike_gp(params, phi, width, y, e, cv):
+def calcWdEclipseMask(dphi, phiOff,phi):
+    # calculate mask which selects in eclipse points
+    phiStart = 1-dphi/2+phiOff
+    phiEnd   = dphi/2 + phiOff
+    fracPhi  = phi % 1
+    return (fracPhi < phiEnd) | (fracPhi > phiStart)
+    
+def kernelCalc(x1,x2,pars):
+    '''This is a function that evaluates the kernel function 
+    given arguments (x1, x2, p) where x1 and x2 are numpy array 
+    defining the coordinates of the samples and p is the numpy 
+    array giving the current settings of the parameters.
+    
+    In this case it is a simple expSquaredKernel, except that 
+    we implement two changepoints at times corresponding to wd
+    eclipse (http://www.robots.ox.ac.uk/~parg/pubs/changepoint.pdf)
+    
+    We assume the points across changepoints are uncorrelated, 
+    and that the amplitude of the GP inside eclipse is very small'''
+    amp, tau, dphi, phi0 = pars
+    # use numpy broadcasting to create 2d array of time differences between x1 and x2
+    rij = -0.5*(x1[:,np.newaxis]-x2[np.newaxis,:])**2 / tau**2
+
+    # calculate masks which select only those points in eclipse
+    mask1 = calcWdEclipseMask(dphi,phi0,x1)
+    mask2 = calcWdEclipseMask(dphi,phi0,x2)
+    
+    # use the same broadcasting trick to have a 2d mask which  
+    # true if both points are in eclipse, or if either point is
+    bothEclipsed = np.logical_and(mask1[:,np.newaxis] , mask2[np.newaxis,:])
+    oneEclipsed  = np.logical_xor(mask1[:,np.newaxis] , mask2[np.newaxis,:])
+    
+    # simple exp squared kernel
+    vij = amp*np.exp(rij)
+    
+    # normal amplitude if both out of eclipse
+    # reduced amplitude for both in eclipse
+    # zero for one in eclipse, one not
+    vij[oneEclipsed] = 0.0
+    vij[bothEclipsed] = vij[bothEclipsed]/50.
+    return vij 
+
+def createGP(params,phi):
     a, tau = np.exp(params[:2])
-    kernel = a * kernels.Matern32Kernel(tau)
-    #kernel = a * kernels.ExpSquaredKernel(tau)
-    gp = george.GP(kernel, solver=george.HODLRSolver)
-    gp.compute(phi, e)
+    dphi, phiOff = params[7],params[15]
+    
+    # custom kernel with changepoints at WD eclipse
+    kernel = kernels.PythonKernel(kernelCalc,pars=(a,tau,dphi,phiOff))
+
+    # create GPs using this kernel
+    gp  = george.GP(kernel)
+    
+    return gp
+        
+def lnlike_gp(params, phi, width, y, e, cv): 
+    gp = createGP(params,phi)
+    gp.compute(phi,e)
+    
     resids = y - model(params[2:],phi,width,cv)
+    
+    # check for bugs in model
     if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
         print params
         print 'Warning: model gave nan or inf answers'
         #raise Exception('model gave nan or inf answers')
         return -np.inf
-    return gp.lnlikelihood(resids)
+ 
+    # now calculate ln_likelihood
+    return gp.lnlikelihood(resids) 
 
 def lnprob_gp(params, phi, width, y, e, cv):
     lp = ln_prior_gp(params)
@@ -226,18 +288,18 @@ def plot_result(bestFit, x, width, y, e, cv):
     wf = 0.5*np.mean(np.diff(xf))*np.ones_like(xf)
     yf = model(bestFit[2:],xf,wf,cv)
     
-    #GP
-    a,tau = np.exp(bestFit[:2])
-    kernel = a * kernels.Matern32Kernel(tau)
-    #kernel = a * kernels.ExpSquaredKernel(tau)
-    gp = george.GP(kernel, solver=george.HODLRSolver)
+    # create GP with changepoints at WD eclipse
+    gp = createGP(bestFit,x)
     gp.compute(x,e)
-
+    
     #condition GP on residuals, and draw conditional samples
     samples = gp.sample_conditional(res, x, size=300)
+    # compute mean and standard deviation of samples from GPs
     mu      = np.mean(samples,axis=0)
     std     = np.std(samples,axis=0)
-    fmu,_   = gp.predict(res,xf)
+
+    # don't forget to predict at fine samples
+    fmu, _ = gp.predict(res, xf)
 
     #set up plot subplots
     gs = gridspec.GridSpec(3,1,height_ratios=[2,1,1])
@@ -249,6 +311,7 @@ def plot_result(bestFit, x, width, y, e, cv):
     #data plot
     ax_dat.plot(xf,yf+fmu,'r-')
     ax_dat.errorbar(x,y,yerr=e,fmt='.',color='k',capsize=0)
+
    
     #data - model plot
     ax_dat_mod.plot(xf,yf,'r-')
@@ -307,10 +370,6 @@ if __name__ == "__main__":
     az = parDict['az']
     frac = parDict['frac']
     scale = parDict['scale']
-    exp1 = parDict['exp1']
-    exp2 = parDict['exp2']
-    tilt = parDict['tilt']
-    yaw = parDict['yaw']
     fwd = parDict['fwd']
     fdisc = parDict['fdisc']
     fbs = parDict['fbs']
@@ -318,12 +377,19 @@ if __name__ == "__main__":
     off = parDict['off']
     amp_gp = parDict['amp_gp']
     tau_gp = parDict['tau_gp']
-    
-    guessP = np.array([amp_gp,tau_gp,fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
-                      exp1,exp2,tilt,yaw])
-
+    try:
+        exp1 = parDict['exp1']
+        exp2 = parDict['exp2']
+        tilt = parDict['tilt']
+        yaw = parDict['yaw']    
+        guessP = np.array([amp_gp,tau_gp,fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
+                          exp1,exp2,tilt,yaw])
+    except:
+        guessP = np.array([amp_gp,tau_gp,fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off])
+        
     # is our starting position legal
     if np.isinf( ln_prior_gp(guessP) ):
+        print parDict
         print 'Error: starting position violates priors'
         sys.exit(-1)
         
