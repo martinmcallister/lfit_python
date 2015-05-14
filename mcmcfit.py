@@ -89,19 +89,11 @@ def ln_prior_base(pars):
 
     #Disc radius (XL1) 
     try:
-<<<<<<< HEAD
         xl1 = roche.xl1(pars[4]) # xl1/a
         prior = Prior('uniform',0.25,0.46/xl1)
         lnp += prior.ln_prob(pars[6])
     except:
         # we get here when roche.findphi raises error - usually invalid q
-=======
-        xl1 = roche.xl1(pars[4]) 
-        prior = Prior('uniform',0.25,0.46/xl1)
-        lnp += prior.ln_prob(pars[6])
-    except:
-        # we get where when roche.findphi raises error - usually invalid q
->>>>>>> d24c3c2e73963e43dbb6b97e65bdfad6c0cb6126
         lnp += -np.inf
     
     #Limb darkening
