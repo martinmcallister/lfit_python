@@ -88,8 +88,13 @@ def ln_prior_base(pars):
         lnp += -np.inf
 
     #Disc radius (XL1) 
-    prior = Prior('uniform',0.3,0.9)
-    lnp += prior.ln_prob(pars[6])
+    try:
+        xl1 = roche.xl1(pars[4]) 
+        prior = Prior('uniform',0.25,0.46/xl1)
+        lnp += prior.ln_prob(pars[6])
+    except:
+        # we get where when roche.findphi raises error - usually invalid q
+        lnp += -np.inf
     
     #Limb darkening
     prior = Prior('gauss',0.35,0.005)
@@ -101,7 +106,7 @@ def ln_prior_base(pars):
 
     #BS scale (XL1)
     rwd = pars[8]
-    prior = Prior('uniform',rwd/3.,0.5)
+    prior = Prior('uniform',rwd/3.,rwd*3.)
     lnp += prior.ln_prob(pars[9])
 
     #BS az
@@ -147,7 +152,7 @@ def ln_prior_base(pars):
         lnp += prior.ln_prob(pars[14])
 
         #BS exp2
-        prior = Prior('uniform',0.01,3.0)
+        prior = Prior('uniform',0.9,3.0)
         lnp += prior.ln_prob(pars[15])
 
         #BS tilt angle
@@ -166,45 +171,67 @@ def chisq(y,yfit,e):
 def reducedChisq(y,yfit,e,pars):
     return chisq(y,yfit, e) / (len(y) - len(pars) - 1)
 
-def computeGPs(params,phi,wdEclipseMask=None):
-    a, tau = np.exp(params[:2])
-
-    # this is the kernel we will use when WD is visible
-    kernel_in = a * kernels.Matern32Kernel(tau)
-    # this is the kernel we will use when the WD is eclipsed. lower amplitude
-    kernel_out = a/50. * kernels.Matern32Kernel(tau)
-
-    # create GPs using these kernels
-    gp_in  = george.GP(kernel_in,  solver=george.HODLRSolver)
-    gp_out = george.GP(kernel_out, solver=george.HODLRSolver)
-    
-    if wdEclipseMask is not None:
-        # compute GP out of eclipse
-        gp_out.compute(phi[~wdEclipseMask], e[~wdEclipseMask])
-        # compute GP inside eclipse
-        gp_in.compute(phi[wdEclipseMask], e[wdEclipseMask])
-
-    return gp_in, gp_out
-
-def calcWdEclipseMask(params,phi):
+def calcWdEclipseMask(dphi, phiOff,phi):
     # calculate mask which selects in eclipse points
-    dphi = params[7]
-    phiOff = params[15]
     phiStart = 1-dphi/2+phiOff
     phiEnd   = dphi/2 + phiOff
     fracPhi  = phi % 1
     return (fracPhi < phiEnd) | (fracPhi > phiStart)
     
-def lnlike_gp(params, phi, width, y, e, cv):
+def kernelCalc(x1,x2,pars):
+    '''This is a function that evaluates the kernel function 
+    given arguments (x1, x2, p) where x1 and x2 are numpy array 
+    defining the coordinates of the samples and p is the numpy 
+    array giving the current settings of the parameters.
     
-    # find phase ranges where WD is visible or eclipsed
-    # mask selects in eclipse points
-    wdEclipseMask = calcWdEclipseMask(params,phi)
+    In this case it is a simple expSquaredKernel, except that 
+    we implement two changepoints at times corresponding to wd
+    eclipse (http://www.robots.ox.ac.uk/~parg/pubs/changepoint.pdf)
     
-    # compute GPs for inside and outside of eclipse
-    gp_in, gp_out = computeGPs(params,phi,wdEclipseMask)
+    We assume the points across changepoints are uncorrelated, 
+    and that the amplitude of the GP inside eclipse is very small'''
+    amp, tau, dphi, phi0 = pars
+    # use numpy broadcasting to create 2d array of time differences between x1 and x2
+    rij = -0.5*(x1[:,np.newaxis]-x2[np.newaxis,:])**2 / tau**2
 
+    # calculate masks which select only those points in eclipse
+    mask1 = calcWdEclipseMask(dphi,phi0,x1)
+    mask2 = calcWdEclipseMask(dphi,phi0,x2)
+    
+    # use the same broadcasting trick to have a 2d mask which  
+    # true if both points are in eclipse, or if either point is
+    bothEclipsed = np.logical_and(mask1[:,np.newaxis] , mask2[np.newaxis,:])
+    oneEclipsed  = np.logical_xor(mask1[:,np.newaxis] , mask2[np.newaxis,:])
+    
+    # simple exp squared kernel
+    vij = amp*np.exp(rij)
+    
+    # normal amplitude if both out of eclipse
+    # reduced amplitude for both in eclipse
+    # zero for one in eclipse, one not
+    vij[oneEclipsed] = 0.0
+    vij[bothEclipsed] = vij[bothEclipsed]/50.
+    return vij 
+
+def createGP(params,phi):
+    a, tau = np.exp(params[:2])
+    dphi, phiOff = params[7],params[15]
+    
+    # custom kernel with changepoints at WD eclipse
+    kernel = kernels.PythonKernel(kernelCalc,pars=(a,tau,dphi,phiOff))
+
+    # create GPs using this kernel
+    gp  = george.GP(kernel)
+    
+    return gp
+        
+def lnlike_gp(params, phi, width, y, e, cv): 
+    gp = createGP(params,phi)
+    gp.compute(phi,e)
+    
     resids = y - model(params[2:],phi,width,cv)
+    
+    # check for bugs in model
     if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
         print params
         print 'Warning: model gave nan or inf answers'
@@ -212,8 +239,7 @@ def lnlike_gp(params, phi, width, y, e, cv):
         return -np.inf
  
     # now calculate ln_likelihood
-    return gp_in.lnlikelihood(resids[wdEclipseMask]) + \
-        gp_out.lnlikelihood(resids[~wdEclipseMask])
+    return gp.lnlikelihood(resids) 
 
 def lnprob_gp(params, phi, width, y, e, cv):
     lp = ln_prior_gp(params)
@@ -254,38 +280,18 @@ def plot_result(bestFit, x, width, y, e, cv):
     wf = 0.5*np.mean(np.diff(xf))*np.ones_like(xf)
     yf = model(bestFit[2:],xf,wf,cv)
     
-
-    # find phase ranges where WD is visible or eclipsed
-    # mask selects in eclipse points
-    wdEclipseMask = calcWdEclipseMask(bestFit,x)
-    wdEclipseMask_fine = calcWdEclipseMask(bestFit,xf)
+    # create GP with changepoints at WD eclipse
+    gp = createGP(bestFit,x)
+    gp.compute(x,e)
     
-    # compute GPs for inside and outside of eclipse
-    gp_in, gp_out = computeGPs(bestFit,x,wdEclipseMask)
-
     #condition GP on residuals, and draw conditional samples
-    # out of eclipse
-    samples_out = gp_out.sample_conditional(res[~wdEclipseMask], \
-        x[~wdEclipseMask], size=300)
-    # don't forget to predict at fine samples
-    fmu_out, _ = gp_out.predict(res[~wdEclipseMask], xf[~wdEclipseMask_fine])
-    
-    # in eclipse
-    samples_in = gp_in.sample_conditional(res[wdEclipseMask], \
-        x[wdEclipseMask], size=300)
-    # don't forget to predict at fine samples
-    fmu_in, _ = gp_in.predict(res[wdEclipseMask], xf[wdEclipseMask_fine])
-    
-    # stack them together
-    samples = np.hstack([samples_out, samples_in])
-    fmu     = np.hstack([fmu_out, fmu_in])
-    
-    # sort them into increasing time order
-    # TODO
-    
+    samples = gp.sample_conditional(res, x, size=300)
     # compute mean and standard deviation of samples from GPs
     mu      = np.mean(samples,axis=0)
     std     = np.std(samples,axis=0)
+
+    # don't forget to predict at fine samples
+    fmu, _ = gp.predict(res, xf)
 
     #set up plot subplots
     gs = gridspec.GridSpec(3,1,height_ratios=[2,1,1])
@@ -297,9 +303,7 @@ def plot_result(bestFit, x, width, y, e, cv):
     #data plot
     ax_dat.plot(xf,yf+fmu,'r-')
     ax_dat.errorbar(x,y,yerr=e,fmt='.',color='k',capsize=0)
-   
-    # plot WD eclipse range
-    ax_dat.axvspan(phiOff-dphi/2.,phiOff+dphi/2,alpha=0.4)
+
    
     #data - model plot
     ax_dat_mod.plot(xf,yf,'r-')
@@ -358,10 +362,6 @@ if __name__ == "__main__":
     az = parDict['az']
     frac = parDict['frac']
     scale = parDict['scale']
-    exp1 = parDict['exp1']
-    exp2 = parDict['exp2']
-    tilt = parDict['tilt']
-    yaw = parDict['yaw']
     fwd = parDict['fwd']
     fdisc = parDict['fdisc']
     fbs = parDict['fbs']
@@ -369,10 +369,16 @@ if __name__ == "__main__":
     off = parDict['off']
     amp_gp = parDict['amp_gp']
     tau_gp = parDict['tau_gp']
-    
-    guessP = np.array([amp_gp,tau_gp,fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
-                      exp1,exp2,tilt,yaw])
-
+    try:
+        exp1 = parDict['exp1']
+        exp2 = parDict['exp2']
+        tilt = parDict['tilt']
+        yaw = parDict['yaw']    
+        guessP = np.array([amp_gp,tau_gp,fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off, \
+                          exp1,exp2,tilt,yaw])
+    except:
+        guessP = np.array([amp_gp,tau_gp,fwd,fdisc,fbs,fd,q,dphi,rdisc,ulimb,rwd,scale,az,frac,rexp,off])
+        
     # is our starting position legal
     if np.isinf( ln_prior_gp(guessP) ):
         print parDict
