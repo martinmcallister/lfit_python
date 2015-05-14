@@ -47,10 +47,8 @@ def ln_prior_gp(params):
     lnp = 0.0
     
     prior = Prior('uniform',-15,10)
-    #prior = Prior('gauss',-6.437,0.001)
     lnp += prior.ln_prob(lna)
     prior = Prior('uniform',-7.97,-6.57) #flickering timescale 30s to 2 mins
-    #prior = Prior('gauss',-7.925,0.001)
     lnp += prior.ln_prob(lntau)
     
     return lnp + ln_prior_base(params[2:])
@@ -168,19 +166,54 @@ def chisq(y,yfit,e):
 def reducedChisq(y,yfit,e,pars):
     return chisq(y,yfit, e) / (len(y) - len(pars) - 1)
 
-def lnlike_gp(params, phi, width, y, e, cv):
+def computeGPs(params,phi,wdEclipseMask=None):
     a, tau = np.exp(params[:2])
-    #kernel = a * kernels.Matern32Kernel(tau)
-    kernel = a * kernels.ExpSquaredKernel(tau)
-    gp = george.GP(kernel, solver=george.HODLRSolver)
-    gp.compute(phi, e)
+
+    # this is the kernel we will use when WD is visible
+    kernel_in = a * kernels.Matern32Kernel(tau)
+    # this is the kernel we will use when the WD is eclipsed. lower amplitude
+    kernel_out = a/50. * kernels.Matern32Kernel(tau)
+
+    # create GPs using these kernels
+    gp_in  = george.GP(kernel_in,  solver=george.HODLRSolver)
+    gp_out = george.GP(kernel_out, solver=george.HODLRSolver)
+    
+    if wdEclipseMask is not None:
+        # compute GP out of eclipse
+        gp_out.compute(phi[~wdEclipseMask], e[~wdEclipseMask])
+        # compute GP inside eclipse
+        gp_in.compute(phi[wdEclipseMask], e[wdEclipseMask])
+
+    return gp_in, gp_out
+
+def calcWdEclipseMask(params,phi):
+    # calculate mask which selects in eclipse points
+    dphi = params[7]
+    phiOff = params[15]
+    phiStart = 1-dphi/2+phiOff
+    phiEnd   = dphi/2 + phiOff
+    fracPhi  = phi % 1
+    return (fracPhi < phiEnd) | (fracPhi > phiStart)
+    
+def lnlike_gp(params, phi, width, y, e, cv):
+    
+    # find phase ranges where WD is visible or eclipsed
+    # mask selects in eclipse points
+    wdEclipseMask = calcWdEclipseMask(params,phi)
+    
+    # compute GPs for inside and outside of eclipse
+    gp_in, gp_out = computeGPs(params,phi,wdEclipseMask)
+
     resids = y - model(params[2:],phi,width,cv)
     if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
         print params
         print 'Warning: model gave nan or inf answers'
         #raise Exception('model gave nan or inf answers')
         return -np.inf
-    return gp.lnlikelihood(resids)
+ 
+    # now calculate ln_likelihood
+    return gp_in.lnlikelihood(resids[wdEclipseMask]) + \
+        gp_out.lnlikelihood(resids[~wdEclipseMask])
 
 def lnprob_gp(params, phi, width, y, e, cv):
     lp = ln_prior_gp(params)
@@ -221,18 +254,38 @@ def plot_result(bestFit, x, width, y, e, cv):
     wf = 0.5*np.mean(np.diff(xf))*np.ones_like(xf)
     yf = model(bestFit[2:],xf,wf,cv)
     
-    #GP
-    a,tau = np.exp(bestFit[:2])
-    #kernel = a * kernels.Matern32Kernel(tau)
-    kernel = a * kernels.ExpSquaredKernel(tau)
-    gp = george.GP(kernel, solver=george.HODLRSolver)
-    gp.compute(x,e)
+
+    # find phase ranges where WD is visible or eclipsed
+    # mask selects in eclipse points
+    wdEclipseMask = calcWdEclipseMask(bestFit,x)
+    wdEclipseMask_fine = calcWdEclipseMask(bestFit,xf)
+    
+    # compute GPs for inside and outside of eclipse
+    gp_in, gp_out = computeGPs(bestFit,x,wdEclipseMask)
 
     #condition GP on residuals, and draw conditional samples
-    samples = gp.sample_conditional(res, x, size=300)
+    # out of eclipse
+    samples_out = gp_out.sample_conditional(res[~wdEclipseMask], \
+        x[~wdEclipseMask], size=300)
+    # don't forget to predict at fine samples
+    fmu_out, _ = gp_out.predict(res[~wdEclipseMask], xf[~wdEclipseMask_fine])
+    
+    # in eclipse
+    samples_in = gp_in.sample_conditional(res[wdEclipseMask], \
+        x[wdEclipseMask], size=300)
+    # don't forget to predict at fine samples
+    fmu_in, _ = gp_in.predict(res[wdEclipseMask], xf[wdEclipseMask_fine])
+    
+    # stack them together
+    samples = np.hstack([samples_out, samples_in])
+    fmu     = np.hstack([fmu_out, fmu_in])
+    
+    # sort them into increasing time order
+    # TODO
+    
+    # compute mean and standard deviation of samples from GPs
     mu      = np.mean(samples,axis=0)
     std     = np.std(samples,axis=0)
-    fmu,_   = gp.predict(res,xf)
 
     #set up plot subplots
     gs = gridspec.GridSpec(3,1,height_ratios=[2,1,1])
@@ -244,6 +297,9 @@ def plot_result(bestFit, x, width, y, e, cv):
     #data plot
     ax_dat.plot(xf,yf+fmu,'r-')
     ax_dat.errorbar(x,y,yerr=e,fmt='.',color='k',capsize=0)
+   
+    # plot WD eclipse range
+    ax_dat.axvspan(phiOff-dphi/2.,phiOff+dphi/2,alpha=0.4)
    
     #data - model plot
     ax_dat_mod.plot(xf,yf,'r-')
@@ -319,6 +375,7 @@ if __name__ == "__main__":
 
     # is our starting position legal
     if np.isinf( ln_prior_gp(guessP) ):
+        print parDict
         print 'Error: starting position violates priors'
         sys.exit(-1)
         
