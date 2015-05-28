@@ -7,6 +7,7 @@ import sys
 import lfit
 import emcee
 import george
+import GaussianProcess as GP
 from george import kernels
 from mcmc_utils import *
 
@@ -171,15 +172,15 @@ def chisq(y,yfit,e):
 def reducedChisq(y,yfit,e,pars):
     return chisq(y,yfit, e) / (len(y) - len(pars) - 1)
 
-def calcWdEclipseMask(dphi, phiOff,phi):
+'''def calcWdEclipseMask(dphi, phiOff,phi):
     # calculate mask which selects in eclipse points
     phiStart = 1-dphi/2+phiOff
     phiEnd   = dphi/2 + phiOff
     fracPhi  = phi % 1
-    return (fracPhi < phiEnd) | (fracPhi > phiStart)
+    return (fracPhi < phiEnd) | (fracPhi > phiStart)'''
     
-def kernelCalc(x1,x2,pars):
-    '''This is a function that evaluates the kernel function 
+'''def kernelCalc(x1,x2,pars):
+    This is a function that evaluates the kernel function 
     given arguments (x1, x2, p) where x1 and x2 are numpy array 
     defining the coordinates of the samples and p is the numpy 
     array giving the current settings of the parameters.
@@ -189,7 +190,7 @@ def kernelCalc(x1,x2,pars):
     eclipse (http://www.robots.ox.ac.uk/~parg/pubs/changepoint.pdf)
     
     We assume the points across changepoints are uncorrelated, 
-    and that the amplitude of the GP inside eclipse is very small'''
+    and that the amplitude of the GP inside eclipse is very small
     amp, tau, dphi, phi0 = pars
     kernel='Matern32'
 
@@ -216,19 +217,23 @@ def kernelCalc(x1,x2,pars):
     # zero for one in eclipse, one not
     vij[oneEclipsed] = 0.0
     vij[bothEclipsed] = vij[bothEclipsed]/50.
-    return vij 
+    return vij'''
 
 def createGP(params,phi):
     a, tau = np.exp(params[:2])
     dphi, phiOff = params[7],params[15]
     
-    # custom kernel with changepoints at WD eclipse
-    kernel = kernels.PythonKernel(kernelCalc,\
-        pars=(a,tau,dphi,phiOff))
+    k_out = a*GP.ExpSquaredKernel(tau)
+    k_in  = 0.01*a*GP.ExpSquaredKernel(tau)
+    
+    changepoints = [-dphi/2., dphi/2.]
+
+    # create kernel with changepoints 
+    # obviously need one more kernel than changepoints!
+    kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out],changepoints) 
 
     # create GPs using this kernel
-    gp  = george.GP(kernel)
-    
+    gp = GP.GaussianProcess(kernel)
     return gp
         
 def lnlike_gp(params, phi, width, y, e, cv): 

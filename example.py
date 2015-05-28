@@ -16,6 +16,6 @@ changepoints = [-dphi/2., dphi/2.]
 # obviously need one more kernel than changepoints!
 kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out],changepoints)
 
-gp = GP.gp(kernel)
+gp = GP.GaussianProcess(kernel)
 gp.compute(phi,errs)
 return gp.lnlikelihood(residuals)
