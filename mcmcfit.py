@@ -230,8 +230,8 @@ def createGP(params,phi):
 
     # create kernel with changepoints 
     # obviously need one more kernel than changepoints!
-    #kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out],changepoints) 
-    kernel = GP.Matern32Kernel(tau)
+    kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out],changepoints) 
+    #kernel = GP.Matern32Kernel(tau)
     
     # create GPs using this kernel
     gp = GP.GaussianProcess(kernel)

@@ -76,7 +76,6 @@ class Kernel(object):
             matrix += self._evaluate(deltaT,i)
         return matrix
         
-        
 class DrasticChangepointKernel(Kernel):
     """Implementation of drastic changepoint kernel from Osborne et al.
     The assumption is that the change in hyperparameters is so large that 
@@ -106,18 +105,16 @@ class DrasticChangepointKernel(Kernel):
         # split x arr up into bits
         xarrs  = np.split(x,breaks)
     
-        for xarr, kernel in zip(xarrs, self.kernels):
-            # create masked version of x array with only those values in this changepoint region
-            xm = np.ma.masked_where(~np.in1d(x,xarr),x)
-            xm.fill_value = 0
-            # create masked deltaT array
-            # use numpy broadcasting to make 2x2 array of time differences between points
-            deltaT = xm[:]-xm[:][:,np.newaxis]
+        # start indices and end indices for gram matrices
+        startInds = np.insert(breaks,0,0)
+        endInds   = np.append(breaks,num_points)
+        for xarr, kernel, startInd, endInd in zip(xarrs, self.kernels, startInds, endInds):
+            # create deltaT array
+            deltaT = x[startInd:endInd]-x[startInd:endInd][:,np.newaxis]
             covar = kernel._evaluate(deltaT,0)
+            # insert gram matrix in correct place
+            self.covar[startInd:endInd,startInd:endInd] += covar            
             
- 			# set covar to zero for ij where either i or j are not within changepoint
- 			self.covar += covar.filled()
-
         self.factor, self.flag = cho_factor(self.covar)
         self.logdet = 2*np.sum(np.log(np.diag(self.factor)))
         self.computed = True
@@ -134,18 +131,20 @@ class DrasticChangepointKernel(Kernel):
         x1arrs  = np.split(x1,breaks1)                
         x2arrs  = np.split(x2,breaks2)  
         
-        for x1arr, x2arr, kernel in zip(x1arrs, x2arrs, self.kernels):
-            x1m = np.ma.masked_where(~np.in1d(x1,x1arr), x1)
-            x2m = np.ma.masked_where(~np.in1d(x2,x2arr), x2)
-            x1m.fill_value = 0
-            x2m.fill_value = 0
+        # start indices and end indices for gram matrices
+        startInds1 = np.insert(breaks1,0,0)
+        endInds1   = np.append(breaks1,len(x1))
+        startInds2 = np.insert(breaks2,0,0)
+        endInds2   = np.append(breaks2,len(x2))
+        
+        for x1arr, x2arr, kernel, s1, e1, s2, e2 in \
+            zip(x1arrs, x2arrs, self.kernels, startInds1, endInds1, startInds2, endInds2):
 
-            X1M, X2M = np.meshgrid(x1m,x2m,indexing='ij')
+            X1M, X2M = np.meshgrid(x1[s1:e1],x2[s2:e2],indexing='ij')
             deltaT = X1M-X2M
-            
-            matrix += kernel._evaluate(deltaT,0).filled()
+            matrix[s1:e1,s2:e2] += kernel._evaluate(deltaT,0)
         return matrix
-                          
+                                          
 class Sum(Kernel):
     def __init__(self,k1,k2):
         assert k1.ndim == k2.ndim, "Dimension Mismatch"
