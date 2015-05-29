@@ -115,9 +115,9 @@ class DrasticChangepointKernel(Kernel):
             deltaT = xm[:]-xm[:][:,np.newaxis]
             covar = kernel._evaluate(deltaT,0)
             
-            # set covar to zero for ij where either i or j are not within changepoint        
-            self.covar += covar.filled()
-            
+ 			# set covar to zero for ij where either i or j are not within changepoint
+ 			self.covar += covar.filled()
+
         self.factor, self.flag = cho_factor(self.covar)
         self.logdet = 2*np.sum(np.log(np.diag(self.factor)))
         self.computed = True

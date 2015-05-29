@@ -223,15 +223,16 @@ def createGP(params,phi):
     a, tau = np.exp(params[:2])
     dphi, phiOff = params[7],params[15]
     
-    k_out = a*GP.ExpSquaredKernel(tau)
-    k_in  = 0.01*a*GP.ExpSquaredKernel(tau)
+    k_out = a*GP.Matern32Kernel(tau)
+    k_in  = 0.01*a*GP.Matern32Kernel(tau)
     
     changepoints = [-dphi/2., dphi/2.]
 
     # create kernel with changepoints 
     # obviously need one more kernel than changepoints!
-    kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out],changepoints) 
-
+    #kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out],changepoints) 
+    kernel = GP.Matern32Kernel(tau)
+    
     # create GPs using this kernel
     gp = GP.GaussianProcess(kernel)
     return gp
