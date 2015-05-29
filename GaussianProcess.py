@@ -87,12 +87,14 @@ class DrasticChangepointKernel(Kernel):
         assert len(changepoints)+1 == len(kernels), "Must have one fewer changepoints than kernels"
         self.kernels = kernels
         self.changepoints = changepoints
+        self.ndim = 1
+        self.computed = False
         
     def compute(self,x,errs):
         # common stuff for all points
         self.computed = False
-        assert len(errs) == len(x), "Length of error array must match that of x array"
-        assert x.ndim == 1, "Only 1D changepoint kernels are supported"
+        assert x.ndim == 1, "Only 1D kernels are supported"
+        assert len(errs) == len(x), "Length of error array must match 2nd dimension of x array"
         
         num_points = len(errs)
         # diagonal part of covariance matrix (white noise terms)
@@ -120,8 +122,12 @@ class DrasticChangepointKernel(Kernel):
         self.computed = True
     
     def get_matrix(self,x1,x2):
-        assert x1.ndim == 1, "Only 1D changepoint kernels are supported"
-        assert x2.ndim == 1, "Only 1D changepoint kernels are supported"
+        x1 = np.atleast_2d(x1)
+        x2 = np.atleast_2d(x2)
+        assert x1.shape[0] == 1, "Only 1D kernels are supported"
+        assert x2.shape[0] == 1, "Only 1D kernels are supported"
+        x1 = x1[0]
+        x2 = x2[0]
         matrix = np.zeros((len(x1),len(x2)))
         
         breaks1 = [np.argmax(x1>cp) for cp in self.changepoints if (x1.min() <= cp <= x1.max())]
