@@ -90,7 +90,7 @@ def ln_prior_base(pars):
     #Disc radius (XL1) 
     try:
         xl1 = roche.xl1(pars[4]) # xl1/a
-        prior = Prior('uniform',0.25,0.46/xl1)
+        prior = Prior('uniform',0.25,0.46/xl1) # maximum size disc can be without precessing
         lnp += prior.ln_prob(pars[6])
     except:
         # we get here when roche.findphi raises error - usually invalid q
