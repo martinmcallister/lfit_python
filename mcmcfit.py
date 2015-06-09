@@ -177,13 +177,13 @@ def createGP(params,phi):
     dphi, phiOff = params[7],params[15]
     
     k_out = a*GP.Matern32Kernel(tau)
-    k_in  = 0.01*a*GP.Matern32Kernel(tau)
+    k_in  = 0.001*a*GP.Matern32Kernel(tau)
     
-    changepoints = [-dphi/2., dphi/2.]
+    changepoints = [-dphi/2.,dphi/2.,1-dphi/2.,1+dphi/2.] # in case of Tmid = 1 or multiple eclipses
 
     # create kernel with changepoints 
     # obviously need one more kernel than changepoints!
-    kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out],changepoints) 
+    kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out,k_in,k_out],changepoints) #final two kernels allow multiple eclipses to be fit
     
     # create GPs using this kernel
     gp = GP.GaussianProcess(kernel)
