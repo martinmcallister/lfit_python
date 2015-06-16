@@ -179,11 +179,21 @@ def createGP(params,phi):
     k_out = a*GP.Matern32Kernel(tau)
     k_in  = 0.001*a*GP.Matern32Kernel(tau)
     
-    changepoints = [-dphi/2.,dphi/2.,1-dphi/2.,1+dphi/2.] # in case of Tmid = 1 or multiple eclipses
+    # Find location of all changepoints
+    changepoints = []
+    for n in range (int(phi[1]),int(phi[-1])+1,1):
+        changepoints.append(n-dphi/2.)
+        changepoints.append(n+dphi/2.)  
 
+    # Depending on number of changepoints, create kernel structure
+    kernel_struc = [k_out]    
+    for k in range (int(phi[1]),int(phi[-1])+1,1):
+        kernel_struc.append(k_in)
+        kernel_struc.append(k_out)
+    
     # create kernel with changepoints 
     # obviously need one more kernel than changepoints!
-    kernel = GP.DrasticChangepointKernel([k_out,k_in,k_out,k_in,k_out],changepoints) #final two kernels allow multiple eclipses to be fit
+    kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
     
     # create GPs using this kernel
     gp = GP.GaussianProcess(kernel)
@@ -284,7 +294,7 @@ def plot_result(bestFit, x, width, y, e, cv):
     ax_dat_mod.set_ylabel('Flux (mJy)')
     ax_res.set_xlabel('Orbital Period')
     ax_res.set_ylabel('Residuals')
-    plt.xlim(-0.1,0.15)
+    #plt.xlim(-0.1,0.15)
     plt.savefig('bestFit.pdf')
     plt.show()
     
