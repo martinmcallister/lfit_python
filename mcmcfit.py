@@ -308,8 +308,7 @@ def parseStartPars(file):
     
 if __name__ == "__main__":
 
-
-    #Input lightcurve data from txt file
+    # Command line arguments 
     import argparse
     parser = argparse.ArgumentParser(description='Fit CV lightcurves with lfit')
     parser.add_argument('file',action='store',help='input file (x,y,e)')
@@ -323,6 +322,7 @@ if __name__ == "__main__":
     file = args.file
     toFit = args.fit
 
+    # Input lightcurve data from txt file
     x,y,e = np.loadtxt(file,skiprows=16).T
     width = np.mean(np.diff(x))*np.ones_like(x)/2.
     
