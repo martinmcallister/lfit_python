@@ -177,7 +177,7 @@ def createGP(params,phi):
     dphi, phiOff = params[7],params[15]
     
     k_out = a*GP.Matern32Kernel(tau)
-    k_in  = 0.001*a*GP.Matern32Kernel(tau)
+    k_in  = 0.01*a*GP.Matern32Kernel(tau)
     
     # Find location of all changepoints
     changepoints = []
