@@ -41,7 +41,6 @@ class LCModel(MutableSequence):
         self.q = q
         self.rwd = rwd
         self.dphi = dphi
-        self.ulimb = ulimb
         
         # we actually need an LFIT CV object to do the calculations
         parVals = [par.startVal for par in parList]
@@ -54,6 +53,7 @@ class LCModel(MutableSequence):
         self.sFlux  = [sFlux]
         self.rsFlux  = [rsFlux]
         self.rdisc  = [rdisc]
+        self.ulimb = [ulimb]
         self.scale  = [scale]
         self.az     = [az]
         self.fis    = [fis]
@@ -104,18 +104,18 @@ class LCModel(MutableSequence):
         self.data.insert(ind,val)
 
     def addEclipse(self,parList):
-        '''parList should be a list of 10 or 14 Param objects, depending on the complexity
+        '''parList should be a list of 11 or 15 Param objects, depending on the complexity
         of the bright spot model. In turn these should be
-        wdFlux, dFlux, sFlux, rsFlux, rdisc, scale, az, fis, dexp, phi0
+        wdFlux, dFlux, sFlux, rsFlux, rdisc, ulimb, scale, az, fis, dexp, phi0
         and optional pars are
         exp1, exp2, tilt, yaw
         '''    
         if self.complex:
-            assert len(parList) == 14, "Wrong number of parameters"
-            wdFlux,dFlux,sFlux,rsFlux,rdisc,scale,az,fis,dexp,phi0,exp1,exp2,tilt,yaw = parList[0:14]
+            assert len(parList) == 15, "Wrong number of parameters"
+            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0,exp1,exp2,tilt,yaw = parList[0:15]
         else:
-            assert len(parList) == 10, "Wrong number of parameters"
-            wdFlux,dFlux,sFlux,rsFlux,rdisc,scale,az,fis,dexp,phi0 = parList[0:10]
+            assert len(parList) == 11, "Wrong number of parameters"
+            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0 = parList[0:11]
             
         self.necl += 1
         self.wdFlux.append(wdFlux)
@@ -123,6 +123,7 @@ class LCModel(MutableSequence):
         self.sFlux.append(sFlux)
         self.rsFlux.append(rsFlux)
         self.rdisc.append(rdisc)
+        self.ulimb.append(ulimb)
         self.scale.append(scale)
         self.az.append(az)
         self.fis.append(fis)
@@ -142,7 +143,7 @@ class LCModel(MutableSequence):
         eclPars = [ \
             self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, self.sFlux[ecl].currVal, \
             self.rsFlux[ecl].currVal, self.q.currVal, self.dphi.currVal, self.rdisc[ecl].currVal, \
-            self.ulimb.currVal, self.rwd.currVal, self.scale[ecl].currVal, \
+            self.ulimb[ecl].currVal, self.rwd.currVal, self.scale[ecl].currVal, \
             self.az[ecl].currVal, self.fis[ecl].currVal, self.dexp[ecl].currVal, \
             self.phi0[ecl].currVal]
         if self.complex:
@@ -163,8 +164,8 @@ class LCModel(MutableSequence):
         
     def ln_prior(self):
         retVal = 0.0
-        priors_pars_shared = ['q','dphi','ulimb','rwd']
-        priors_pars_unique = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 'scale', 'az', 'fis', 'dexp', 'phi0']
+        priors_pars_shared = ['q','dphi','rwd']
+        priors_pars_unique = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 'ulimb', 'scale', 'az', 'fis', 'dexp', 'phi0']
         if self.complex:
             priors_pars_unique.extend(['exp1','exp2','tilt','yaw'])
         for par in priors_pars_shared:
@@ -230,7 +231,6 @@ if __name__ == "__main__":
     q      = Param.fromString( input_dict['q'] )
     dphi   = Param.fromString( input_dict['dphi'] )
     rwd    = Param.fromString( input_dict['rwd'] )
-    ulimb  = Param.fromString( input_dict['ulimb'] )
     
     output_files = []
     files = []
@@ -239,6 +239,7 @@ if __name__ == "__main__":
     fbs = []
     fd  = []
     rdisc = []
+    ulimb = []
     scale = []
     az = []
     frac = []
@@ -256,6 +257,7 @@ if __name__ == "__main__":
         fbs.append(Param.fromString( input_dict['fbs_%d' % ecl] ))
         fd.append(Param.fromString(input_dict['fd_%d' % ecl] ))
         rdisc.append(Param.fromString(input_dict['rdisc_%d' % ecl] ))
+        ulimb.append(Param.fromString(input_dict['ulimb_%d' % ecl] ))
         scale.append(Param.fromString(input_dict['scale_%d' % ecl] ))
         az.append(Param.fromString(input_dict['az_%d' % ecl] ))
         frac.append(Param.fromString(input_dict['frac_%d' % ecl] ))
@@ -276,7 +278,7 @@ if __name__ == "__main__":
     """
 
     # create a model from the first eclipses parameters
-    parList = [fwd[0],fdisc[0],fbs[0],fd[0],q,dphi,rdisc[0],ulimb,rwd, \
+    parList = [fwd[0],fdisc[0],fbs[0],fd[0],q,dphi,rdisc[0],ulimb[0],rwd, \
                 scale[0],az[0],frac[0],rexp[0],off[0]]
     if complex:
         parList.extend([exp1[0],exp2[0],tilt[0],yaw[0]])
@@ -284,7 +286,7 @@ if __name__ == "__main__":
     
     # then add in additional eclipses as necessary
     for ecl in range(1,neclipses):
-        parList = [fwd[ecl],fdisc[ecl],fbs[ecl],fd[ecl],rdisc[ecl], \
+        parList = [fwd[ecl],fdisc[ecl],fbs[ecl],fd[ecl],rdisc[ecl],ulimb[ecl], \
                     scale[ecl],az[ecl],frac[ecl],rexp[ecl],off[ecl]]
         if complex:
             parList.extend([exp1[ecl],exp2[ecl],tilt[ecl],yaw[ecl]])
@@ -364,9 +366,9 @@ if __name__ == "__main__":
         
         # Print out parameters
         
-        pars_shared = ['q','dphi','_','ulimb','rwd']
-        pars_unique = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux','_','_','rdisc','_','_','scale', 'az', 'fis', 'dexp', 'phi0']
-        pars_unique_2 = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux','rdisc','scale', 'az', 'fis', 'dexp', 'phi0']
+        pars_shared = ['q','dphi','_','_','rwd']
+        pars_unique = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux','_','_','rdisc','ulimb','_','scale', 'az', 'fis', 'dexp', 'phi0']
+        pars_unique_2 = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 'ulimb', 'scale', 'az', 'fis', 'dexp', 'phi0']
         if complex:
             pars_unique.extend(['exp1','exp2','tilt','yaw'])
             pars_unique_2.extend(['exp1','exp2','tilt','yaw'])
@@ -377,8 +379,8 @@ if __name__ == "__main__":
         print "\nShared params:\n"
         p = 4
         for i in range(0,5):
-        	if p == 6:
-        		p += 1
+        	if p == 6 or p == 7:
+                    p += 1
         	else:
         		par = chain[:,p]
         		lolim,best,uplim = np.percentile(par,[16,50,84])
@@ -387,20 +389,18 @@ if __name__ == "__main__":
         		'''params.append(best)
         		model[i] = best'''
                 
-        ind_npars = (npars-4)/neclipses
+        ind_npars = (npars-3)/neclipses
         a = 0 
-        b = 4     
+        b = 3     
         
         for iecl in range(neclipses):
             print "\nindividual params for eclipse %d:\n" % (iecl+1)
             p = 0+(iecl*ind_npars)
             a += (ind_npars*iecl)
             b += (a + ind_npars)
-            print a
-            print b
             if a <= npars:
 				for i in range(a,b):
-					if p == 4 or p == 5 or p == 7 or p == 8:
+					if p == 4 or p == 5 or p == 8:
 						p += 1
 					else:
 						if iecl == 0:
@@ -408,11 +408,11 @@ if __name__ == "__main__":
 							lolim,best,uplim = np.percentile(par,[16,50,84])
 							print "%s = %f +%f -%f" % (pars_unique[i],best,uplim-best,best-lolim)
 						else:
-							par = chain[:,p+4] 
+							par = chain[:,p+3] 
 							lolim,best,uplim = np.percentile(par,[16,50,84])
 							print "%s = %f +%f -%f" % (pars_unique[i],best,uplim-best,best-lolim)
 						p += 1	  
-				a = 4
+				a = 3
 				b = 0
             '''params.append(best)
             model[i] = best'''

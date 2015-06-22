@@ -103,19 +103,18 @@ class DrasticChangepointKernel(Kernel):
         # now the stuff for changepoints
         '''assume x is sorted'''
         breaks = [np.argmax(x>cp) for cp in self.changepoints if (x.min() <= cp <= x.max())]
-        
         # split x arr up into bits
         xarrs  = np.split(x,breaks)
-    
         # start indices and end indices for gram matrices
         startInds = np.insert(breaks,0,0)
         endInds   = np.append(breaks,num_points)
+    
         for xarr, kernel, startInd, endInd in zip(xarrs, self.kernels, startInds, endInds):
-            # create deltaT array
-            deltaT = x[startInd:endInd]-x[startInd:endInd][:,np.newaxis]
-            covar = kernel._evaluate(deltaT,0)
-            # insert gram matrix in correct place
-            self.covar[startInd:endInd,startInd:endInd] += covar            
+    		# create deltaT array
+	     	deltaT = x[startInd:endInd]-x[startInd:endInd][:,np.newaxis]
+	    	covar = kernel._evaluate(deltaT,0) 
+	    	# insert gram matrix in correct place 
+	    	self.covar[startInd:endInd,startInd:endInd] += covar            
             
         self.factor, self.flag = cho_factor(self.covar)
         self.logdet = 2*np.sum(np.log(np.diag(self.factor)))
