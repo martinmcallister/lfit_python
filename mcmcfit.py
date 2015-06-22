@@ -7,6 +7,7 @@ import sys
 import lfit
 import emcee
 import george
+import GaussianProcess as GP
 from george import kernels
 from mcmc_utils import *
 
@@ -171,64 +172,31 @@ def chisq(y,yfit,e):
 def reducedChisq(y,yfit,e,pars):
     return chisq(y,yfit, e) / (len(y) - len(pars) - 1)
 
-def calcWdEclipseMask(dphi, phiOff,phi):
-    # calculate mask which selects in eclipse points
-    phiStart = 1-dphi/2+phiOff
-    phiEnd   = dphi/2 + phiOff
-    fracPhi  = phi % 1
-    return (fracPhi < phiEnd) | (fracPhi > phiStart)
-    
-def kernelCalc(x1,x2,pars):
-    '''This is a function that evaluates the kernel function 
-    given arguments (x1, x2, p) where x1 and x2 are numpy array 
-    defining the coordinates of the samples and p is the numpy 
-    array giving the current settings of the parameters.
-    
-    In this case it is a simple expSquaredKernel, except that 
-    we implement two changepoints at times corresponding to wd
-    eclipse (http://www.robots.ox.ac.uk/~parg/pubs/changepoint.pdf)
-    
-    We assume the points across changepoints are uncorrelated, 
-    and that the amplitude of the GP inside eclipse is very small'''
-    amp, tau, dphi, phi0 = pars
-    kernel='Matern32'
-
-    # use numpy broadcasting to create 2d array of time differences between x1 and x2
-    rij = (x1[:,np.newaxis]-x2[np.newaxis,:])**2 / tau
-
-    # calculate masks which select only those points in eclipse
-    mask1 = calcWdEclipseMask(dphi,phi0,x1)
-    mask2 = calcWdEclipseMask(dphi,phi0,x2)
-    
-    # use the same broadcasting trick to have a 2d mask which  
-    # true if both points are in eclipse, or if either point is
-    bothEclipsed = np.logical_and(mask1[:,np.newaxis] , mask2[np.newaxis,:])
-    oneEclipsed  = np.logical_xor(mask1[:,np.newaxis] , mask2[np.newaxis,:])
-    
-    # calculate kernel
-    if kernel == 'ExpSquared':
-        vij = amp*np.exp(-0.5*rij)
-    elif kernel == 'Matern32':
-        vij = amp*(1.0+np.sqrt(3*rij))*np.exp(-np.sqrt(3*rij))
-            
-    # normal amplitude if both out of eclipse
-    # reduced amplitude for both in eclipse
-    # zero for one in eclipse, one not
-    vij[oneEclipsed] = 0.0
-    vij[bothEclipsed] = vij[bothEclipsed]/50.
-    return vij 
-
 def createGP(params,phi):
     a, tau = np.exp(params[:2])
     dphi, phiOff = params[7],params[15]
     
-    # custom kernel with changepoints at WD eclipse
-    kernel = kernels.PythonKernel(kernelCalc,\
-        pars=(a,tau,dphi,phiOff))
-
-    # create GPs using this kernel
-    gp  = george.GP(kernel)
+    k_out = a*GP.Matern32Kernel(tau)
+    k_in  = 0.001*a*GP.Matern32Kernel(tau)
     
+    # Find location of all changepoints
+    changepoints = []
+    for n in range (int(phi[1]),int(phi[-1])+1,1):
+        changepoints.append(n-dphi/2.)
+        changepoints.append(n+dphi/2.)  
+
+    # Depending on number of changepoints, create kernel structure
+    kernel_struc = [k_out]    
+    for k in range (int(phi[1]),int(phi[-1])+1,1):
+        kernel_struc.append(k_in)
+        kernel_struc.append(k_out)
+    
+    # create kernel with changepoints 
+    # obviously need one more kernel than changepoints!
+    kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
+    
+    # create GPs using this kernel
+    gp = GP.GaussianProcess(kernel)
     return gp
         
 def lnlike_gp(params, phi, width, y, e, cv): 
@@ -326,7 +294,7 @@ def plot_result(bestFit, x, width, y, e, cv):
     ax_dat_mod.set_ylabel('Flux (mJy)')
     ax_res.set_xlabel('Orbital Period')
     ax_res.set_ylabel('Residuals')
-    plt.xlim(-0.1,0.15)
+    #plt.xlim(-0.1,0.15)
     plt.savefig('bestFit.pdf')
     plt.show()
     
