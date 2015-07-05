@@ -145,7 +145,7 @@ class LCModel(MutableSequence):
         '''we have to extract the current value of the parameters for this ecl, and 
         calculate the CV flux'''
         eclPars = [ \
-            self.amp_gp.currval, self.tau_gp.currval, self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, \ 
+            self.amp_gp.currval, self.tau_gp.currval, self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, \
             self.sFlux[ecl].currVal, self.rsFlux[ecl].currVal, self.q.currVal, self.dphi.currVal, \
             self.rdisc[ecl].currVal, self.ulimb[ecl].currVal, self.rwd.currVal, self.scale[ecl].currVal, \
             self.az[ecl].currVal, self.fis[ecl].currVal, self.dexp[ecl].currVal, self.phi0[ecl].currVal]
