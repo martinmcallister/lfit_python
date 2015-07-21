@@ -169,7 +169,7 @@ class LCModel(MutableSequence):
     def ln_prior_base(self):
         retVal = 0.0
         priors_pars_shared = ['q','rwd']
-        priors_pars_unique = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 'ulimb', 'scale', 'az', 'fis', 'dexp', 'phi0']
+        priors_pars_unique = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'ulimb', 'fis', 'dexp', 'phi0']
         if self.complex:
             priors_pars_unique.extend(['exp1','exp2','tilt','yaw'])
         for par in priors_pars_shared:
@@ -183,7 +183,8 @@ class LCModel(MutableSequence):
                 if param.isVar:
                     retVal += param.prior.ln_prob(param.currVal)
 
-        # just add in special cases here, e.g
+        # just add in special cases here, e.g.:
+        
 		# dphi
 		tol = 1.0e-6
 		try:
@@ -197,7 +198,61 @@ class LCModel(MutableSequence):
 		except:
 			# we get here when roche.findphi raises error - usually invalid q
 			retVal += -np.inf
+        return retVal
         
+        #Disc radius (XL1) 
+    	try:
+    		q = getattr(self,'q')
+        	xl1 = roche.xl1(q) # xl1/a
+        	rdisc = getattr(self,'rdisc')
+        	maxrdisc = 0.46/xl1 # maximum size disc can be without precessing
+        	if rdisc.currVal > maxrdisc:
+        		retVal += -np.inf
+        	else:
+        		retVal += rdisc.prior.ln_prob(rdisc.currVal)
+    	except:
+        	# we get here when roche.findphi raises error - usually invalid q
+        	retVal += -np.inf
+        return retVal
+        
+        #BS scale (XL1)
+    	rwd = getattr(self,'rwd')
+    	scale = getattr(self,'scale')
+    	minscale = rwd/3.
+    	maxscale = rwd*3.
+    	if scale < minscale or scale > maxscale:
+    		retVal += -np.inf
+    	else:
+    		retVal += scale.prior.ln_prob(scale.currVal)
+    	return retVal
+    		
+    	#BS az
+    	slop = 40.0
+		try:
+        	# find position of bright spot where it hits disc
+        	# will fail if q invalid
+        	q = getattr(self,'q')
+        	xl1 = roche.xl1(q) # xl1/a
+        	rdisc = getattr(self,'rdisc')
+        	rd_a = rdisc*xl1
+        	az = getattr(self,'az')
+       		# Does stream miss disc? (disc/a < 0.2 or > 0.65 )
+        	# if so, Tom's code will fail
+        	x,y,vx,vy = roche.bspot(q,rd_a)
+        	# find tangent to disc at this point
+        	alpha = np.degrees(np.arctan2(y,x))
+        	# alpha is between -90 and 90. if negative spot lags disc ie alpha > 90
+        	if alpha < 0: alpha = 90-alpha
+        	tangent = alpha + 90 # disc tangent
+    		minaz = max(0,tangent-slop)
+    		maxaz = min(178,tangent+slop)
+    		if az < minaz or az > maxaz:
+    			retVal += -np.inf
+    		else:
+    			retVal += az.prior.ln_prob(az.currVal)
+    	except:
+    		# we get here when roche.findphi raises error - usually invalid q
+        	retVal += -np.inf
         return retVal
         
     def ln_prior(self):
