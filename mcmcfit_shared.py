@@ -34,8 +34,8 @@ class LCModel(MutableSequence):
         '''
         amp_gp,tau_gp,wdFlux,dFlux,sFlux,rsFlux,q,dphi,rdisc,ulimb,rwd,scale,az,fis,dexp,phi0 = parList[0:16]
         complex = False
-        if len(parList) > 14:
-            exp1, exp2, tilt, yaw = parList[14:]
+        if len(parList) > 16:
+            exp1, exp2, tilt, yaw = parList[16:]
             complex = True
         # put into class instance
         self.q = q
@@ -43,15 +43,16 @@ class LCModel(MutableSequence):
         self.dphi = dphi
         self.amp_gp = amp_gp
         self.tau_gp = tau_gp
+        # make sure these are not variables
+        self.amp_gp.isVar = False
+        self.tau_gp.isVar = False
         
         # we actually need an LFIT CV object to do the calculations
-        parVals = [par.startVal for par in parList]
+        parVals = [par.startVal for par in parList[2:]]
         self.cv = lfit.CV(parVals)
         
         # now parameters that differ for each eclipse. put these in a list
         # this allows us to get params for a given eclipse
-        self.amp_gp = [amp_gp]
-        self.tau_gp = [tau_gp]
         self.wdFlux = [wdFlux]
         self.dFlux  = [dFlux]
         self.sFlux  = [sFlux]
@@ -145,7 +146,7 @@ class LCModel(MutableSequence):
         '''we have to extract the current value of the parameters for this ecl, and 
         calculate the CV flux'''
         eclPars = [ \
-            self.amp_gp.currval, self.tau_gp.currval, self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, \
+            self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, \
             self.sFlux[ecl].currVal, self.rsFlux[ecl].currVal, self.q.currVal, self.dphi.currVal, \
             self.rdisc[ecl].currVal, self.ulimb[ecl].currVal, self.rwd.currVal, self.scale[ecl].currVal, \
             self.az[ecl].currVal, self.fis[ecl].currVal, self.dexp[ecl].currVal, self.phi0[ecl].currVal]
@@ -165,9 +166,9 @@ class LCModel(MutableSequence):
             retVal += np.sum(resids**2)
         return retVal
         
-    def ln_prior(self):
+    def ln_prior_base(self):
         retVal = 0.0
-        priors_pars_shared = ['amp_gp','tau_gp','q','dphi','rwd']
+        priors_pars_shared = ['q','rwd']
         priors_pars_unique = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 'ulimb', 'scale', 'az', 'fis', 'dexp', 'phi0']
         if self.complex:
             priors_pars_unique.extend(['exp1','exp2','tilt','yaw'])
@@ -181,8 +182,28 @@ class LCModel(MutableSequence):
                 param = parArr[iecl]
                 if param.isVar:
                     retVal += param.prior.ln_prob(param.currVal)
-        return retVal
 
+        # just add in special cases here, e.g
+		# dphi
+		tol = 1.0e-6
+		try:
+			q = getattr(self,'q')
+			dphi = getattr(self,'dphi')
+			maxphi = roche.findphi(q.currVal,90.0) #dphi when i is slightly less than 90
+			if dphi.currVal > maxphi:
+				retVal += -np.inf
+			else:
+				retVal += dphi.prior.ln_prob(dphi.currVal)
+		except:
+			# we get here when roche.findphi raises error - usually invalid q
+			retVal += -np.inf
+        
+        return retVal
+        
+    def ln_prior(self):
+    	# this needs to be different in GPLCModel
+    	return self.ln_prior_base()
+ 
     def ln_likelihood(self,phi,y,e,width=None):
         errFac = 0.0
         for iecl in range(self.necl):
@@ -198,6 +219,32 @@ class LCModel(MutableSequence):
                 return -np.inf
         else:
             return lnp
+            
+class GPLCModel(LCModel):
+	def __init__(self,parList,nel_disc=1000,nel_donor=400):
+		LCModel.__init__(self,parList,nel_disc,nel_donor)
+		# make sure GP params are  variables
+        self.amp_gp.isVar = True
+        self.tau_gp.isVar = True
+	
+	def ln_prior_gp(self):
+		retVal=0.0
+		priors_pars_shared = ['amp_gp','tau_gp']
+		for par in priors_pars_shared:
+            param = getattr(self,par)
+            if param.isVar:
+                retVal += param.prior.ln_prob(param.currVal)
+		return retVal
+		
+	def ln_prior(self):
+		return self.ln_prior_base() + self.ln_prior_gp()	
+		
+	def ln_likelihood(self,phi,y,e,width=None):
+		# new ln_like function, using GPs, looping over each eclipse
+		lnlike = 0.0
+		for iecl in range(self.necl):
+			continue
+		return lnlike	
 
 def parseInput(file):
         blob = np.loadtxt(file,dtype='string',delimiter='\n')
@@ -225,8 +272,8 @@ if __name__ == "__main__":
     toFit    = int( input_dict['fit'] )
     
     neclipses = int( input_dict['neclipses'] )
-    complex    = bool( input_dict['complex'] )
-    
+    complex    = bool( int(input_dict['complex']) )
+    useGP      = bool( int(input_dict['useGP']) )
     amp_gp = Param.fromString( input_dict['amp_gp'])
     tau_gp = Param.fromString( input_dict['tau_gp'])
     q      = Param.fromString( input_dict['q'] )
@@ -283,8 +330,11 @@ if __name__ == "__main__":
                 scale[0],az[0],frac[0],rexp[0],off[0]]
     if complex:
         parList.extend([exp1[0],exp2[0],tilt[0],yaw[0]])
-    model = LCModel(parList)
-    
+    if useGP:
+		model = GPLCModel(parList)
+    else:
+		model = LCModel(parList)
+
     # then add in additional eclipses as necessary
     for ecl in range(1,neclipses):
         parList = [fwd[ecl],fdisc[ecl],fbs[ecl],fd[ecl],rdisc[ecl],ulimb[ecl], \
