@@ -6,6 +6,9 @@ from trm import roche
 import sys
 import lfit
 import emcee
+import george
+import GaussianProcess as GP
+from george import kernels
 from mcmc_utils import *
 import seaborn
 from collections import MutableSequence
@@ -28,11 +31,11 @@ class LCModel(MutableSequence):
     def __init__(self,parList,nel_disc=1000,nel_donor=400):
         '''parameter list should be a 16 element or 20 element dictionary of Param objects
         in order these are:
-        amp_gp,tau_gp,wdFlux, dFlux, sFlux, rsFlux, q, dphi, rdisc, ulimb, rwd, scale, az, fis, dexp, phi0
+        amp_gp, tau_gp, wdFlux, dFlux, sFlux, rsFlux, q, dphi, rdisc, ulimb, rwd, scale, az, fis, dexp, phi0
         and optional pars are
         exp1, exp2, tilt, yaw
         '''
-        amp_gp,tau_gp,wdFlux,dFlux,sFlux,rsFlux,q,dphi,rdisc,ulimb,rwd,scale,az,fis,dexp,phi0 = parList[0:16]
+        amp_gp,tau_gp,wdFlux,dFlux,sFlux,rsFlux,q,dphi,rdisc,ulimb,rwd,scale,az,fis,dexp,phi0 = parList[0:15]
         complex = False
         if len(parList) > 16:
             exp1, exp2, tilt, yaw = parList[16:]
@@ -117,10 +120,10 @@ class LCModel(MutableSequence):
         '''    
         if self.complex:
             assert len(parList) == 15, "Wrong number of parameters"
-            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0,exp1,exp2,tilt,yaw = parList[0:15]
+            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0,exp1,exp2,tilt,yaw = parList[0:14]
         else:
             assert len(parList) == 11, "Wrong number of parameters"
-            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0 = parList[0:11]
+            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0 = parList[0:10]
             
         self.necl += 1
         self.wdFlux.append(wdFlux)
@@ -145,11 +148,10 @@ class LCModel(MutableSequence):
     def calc(self,ecl,phi,width=None):
         '''we have to extract the current value of the parameters for this ecl, and 
         calculate the CV flux'''
-        eclPars = [ \
-            self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, \
-            self.sFlux[ecl].currVal, self.rsFlux[ecl].currVal, self.q.currVal, self.dphi.currVal, \
-            self.rdisc[ecl].currVal, self.ulimb[ecl].currVal, self.rwd.currVal, self.scale[ecl].currVal, \
-            self.az[ecl].currVal, self.fis[ecl].currVal, self.dexp[ecl].currVal, self.phi0[ecl].currVal]
+        eclPars = [self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, self.sFlux[ecl].currVal, \
+        	self.rsFlux[ecl].currVal, self.q.currVal, self.dphi.currVal, self.rdisc[ecl].currVal, \
+        	self.ulimb[ecl].currVal, self.rwd.currVal, self.scale[ecl].currVal, self.az[ecl].currVal, \
+        	self.fis[ecl].currVal, self.dexp[ecl].currVal, self.phi0[ecl].currVal]
         if self.complex:
             eclPars.extend([self.exp1[ecl].currVal, self.exp2[ecl].currVal, \
                 self.tilt[ecl].currVal, self.yaw[ecl].currVal])
@@ -198,7 +200,6 @@ class LCModel(MutableSequence):
 		except:
 			# we get here when roche.findphi raises error - usually invalid q
 			retVal += -np.inf
-        return retVal
         
         #Disc radius (XL1) 
     	try:
@@ -213,7 +214,6 @@ class LCModel(MutableSequence):
     	except:
         	# we get here when roche.findphi raises error - usually invalid q
         	retVal += -np.inf
-        return retVal
         
         #BS scale (XL1)
     	rwd = getattr(self,'rwd')
@@ -224,7 +224,6 @@ class LCModel(MutableSequence):
     		retVal += -np.inf
     	else:
     		retVal += scale.prior.ln_prob(scale.currVal)
-    	return retVal
     		
     	#BS az
     	slop = 40.0
@@ -253,23 +252,24 @@ class LCModel(MutableSequence):
     	except:
     		# we get here when roche.findphi raises error - usually invalid q
         	retVal += -np.inf
+        	
         return retVal
         
     def ln_prior(self):
     	# this needs to be different in GPLCModel
     	return self.ln_prior_base()
  
-    def ln_likelihood(self,phi,y,e,width=None):
-        errFac = 0.0
+    def ln_likelihood(self,parList,phi,y,e,width=None):
+        lnlike = 0.0
         for iecl in range(self.necl):
-            errFac += np.sum( np.log (2.0*np.pi*e[iecl]**2) )
-        return -0.5*(errFac + self.chisq(phi,y,e,width))
+            lnlike += np.sum( np.log (2.0*np.pi*e[iecl]**2) )
+        return -0.5*(lnlike + self.chisq(phi,y,e,width))
         
-    def ln_prob(self,phi,y,e,width=None):
+    def ln_prob(self,parList,phi,y,e,width=None):
         lnp = self.ln_prior()
         if np.isfinite(lnp):
             try:
-                return lnp + self.ln_likelihood(phi,y,e,width)
+                return lnp + self.ln_likelihood(parList,phi,y,e,width)
             except:
                 return -np.inf
         else:
@@ -278,10 +278,22 @@ class LCModel(MutableSequence):
 class GPLCModel(LCModel):
 	def __init__(self,parList,nel_disc=1000,nel_donor=400):
 		LCModel.__init__(self,parList,nel_disc,nel_donor)
-		# make sure GP params are  variables
+		# make sure GP params are variables
         self.amp_gp.isVar = True
         self.tau_gp.isVar = True
-	
+        
+    def addEclipse(self,parList):
+    	LCModel.addEclipse(self,parList)
+    	
+    def calc(self,ecl,phi,width=None):
+    	LCModel.calc(self,ecl,phi,width)
+    	
+    def chisq(self,phi,y,e,width=None):
+    	LCModel.chisq(self,phi,y,e,width)
+    	
+	def ln_prior_base(self):
+		LCModel.ln_prior_base(self)
+    	
 	def ln_prior_gp(self):
 		retVal=0.0
 		priors_pars_shared = ['amp_gp','tau_gp']
@@ -294,13 +306,80 @@ class GPLCModel(LCModel):
 	def ln_prior(self):
 		return self.ln_prior_base() + self.ln_prior_gp()	
 		
-	def ln_likelihood(self,phi,y,e,width=None):
+	def createGP(self,parList,phi):
+    	a, tau = np.exp(parList[:2])
+    	dphi, phiOff = parList[7],parList[15]
+    
+    	k_out = a*GP.Matern32Kernel(tau)
+    	k_in  = 0.01*a*GP.Matern32Kernel(tau)
+    
+    	# Find location of all changepoints
+    	changepoints = []
+    	for n in range (int(phi[1]),int(phi[-1])+1,1):
+        	changepoints.append(n-dphi/2.)
+        	changepoints.append(n+dphi/2.)  
+
+    	# Depending on number of changepoints, create kernel structure
+    	kernel_struc = [k_out]    
+    	for k in range (int(phi[1]),int(phi[-1])+1,1):
+        	kernel_struc.append(k_in)
+        	kernel_struc.append(k_out)
+    
+    	# create kernel with changepoints 
+    	# obviously need one more kernel than changepoints!
+    	kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
+    
+    	# create GPs using this kernel
+    	gp = GP.GaussianProcess(kernel)
+    	return gp
+        
+    def ln_likelihood(self,parList,phi,y,e,width=None):
 		# new ln_like function, using GPs, looping over each eclipse
 		lnlike = 0.0
 		for iecl in range(self.necl):
-			continue
-		return lnlike	
-
+			gp = createGP(parList,phi)
+    		gp.compute(phi,e)
+    		resids = y - LCModel(parList[2:]).cv
+    		
+    	# check for bugs in model
+    	if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
+        print parList
+        print 'Warning: model gave nan or inf answers'
+        #raise Exception('model gave nan or inf answers')
+        return -np.inf
+        
+        # now calculate ln_likelihood
+        
+        lnlike += gp.lnlikelihood(resids)
+        
+    	return -0.5*(lnlike + self.chisq(phi,y,e,width))
+        
+	'''def lnlike_gp(params, phi, width, y, e, cv): 
+    gp = createGP(params,phi)
+    gp.compute(phi,e)
+    
+    resids = y - model(params[2:],phi,width,cv)
+    
+    # check for bugs in model
+    if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
+        print params
+        print 'Warning: model gave nan or inf answers'
+        #raise Exception('model gave nan or inf answers')
+        return -np.inf
+ 
+    # now calculate ln_likelihood
+    return gp.lnlikelihood(resids) '''
+		
+		########
+		
+		'''lnlike = 0.0
+        for iecl in range(self.necl):
+            lnlike += np.sum( np.log (2.0*np.pi*e[iecl]**2) )
+        return -0.5*(lnlike + self.chisq(phi,y,e,width))'''
+        
+    def ln_prob(self,parList,phi,y,e,width=None):
+    	LCModel.ln_prob(self,parList,phi,y,e,width)
+    	
 def parseInput(file):
         blob = np.loadtxt(file,dtype='string',delimiter='\n')
         input_dict = {}
