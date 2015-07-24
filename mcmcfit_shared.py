@@ -7,8 +7,8 @@ import sys
 import lfit
 import emcee
 import george
+import warnings
 import GaussianProcess as GP
-from george import kernels
 from mcmc_utils import *
 import seaborn
 from collections import MutableSequence
@@ -35,7 +35,7 @@ class LCModel(MutableSequence):
         and optional pars are
         exp1, exp2, tilt, yaw
         '''
-        amp_gp,tau_gp,wdFlux,dFlux,sFlux,rsFlux,q,dphi,rdisc,ulimb,rwd,scale,az,fis,dexp,phi0 = parList[0:15]
+        amp_gp,tau_gp,wdFlux,dFlux,sFlux,rsFlux,q,dphi,rdisc,ulimb,rwd,scale,az,fis,dexp,phi0 = parList[0:16]
         complex = False
         if len(parList) > 16:
             exp1, exp2, tilt, yaw = parList[16:]
@@ -120,10 +120,10 @@ class LCModel(MutableSequence):
         '''    
         if self.complex:
             assert len(parList) == 15, "Wrong number of parameters"
-            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0,exp1,exp2,tilt,yaw = parList[0:14]
+            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0,exp1,exp2,tilt,yaw = parList[0:15]
         else:
             assert len(parList) == 11, "Wrong number of parameters"
-            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0 = parList[0:10]
+            wdFlux,dFlux,sFlux,rsFlux,rdisc,ulimb,scale,az,fis,dexp,phi0 = parList[0:11]
             
         self.necl += 1
         self.wdFlux.append(wdFlux)
@@ -149,9 +149,9 @@ class LCModel(MutableSequence):
         '''we have to extract the current value of the parameters for this ecl, and 
         calculate the CV flux'''
         eclPars = [self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, self.sFlux[ecl].currVal, \
-        	self.rsFlux[ecl].currVal, self.q.currVal, self.dphi.currVal, self.rdisc[ecl].currVal, \
-        	self.ulimb[ecl].currVal, self.rwd.currVal, self.scale[ecl].currVal, self.az[ecl].currVal, \
-        	self.fis[ecl].currVal, self.dexp[ecl].currVal, self.phi0[ecl].currVal]
+            self.rsFlux[ecl].currVal, self.q.currVal, self.dphi.currVal, self.rdisc[ecl].currVal, \
+            self.ulimb[ecl].currVal, self.rwd.currVal, self.scale[ecl].currVal, self.az[ecl].currVal, \
+            self.fis[ecl].currVal, self.dexp[ecl].currVal, self.phi0[ecl].currVal]
         if self.complex:
             eclPars.extend([self.exp1[ecl].currVal, self.exp2[ecl].currVal, \
                 self.tilt[ecl].currVal, self.yaw[ecl].currVal])
@@ -187,77 +187,84 @@ class LCModel(MutableSequence):
 
         # just add in special cases here, e.g.:
         
-		# dphi
-		tol = 1.0e-6
-		try:
-			q = getattr(self,'q')
-			dphi = getattr(self,'dphi')
-			maxphi = roche.findphi(q.currVal,90.0) #dphi when i is slightly less than 90
-			if dphi.currVal > maxphi:
-				retVal += -np.inf
-			else:
-				retVal += dphi.prior.ln_prob(dphi.currVal)
-		except:
-			# we get here when roche.findphi raises error - usually invalid q
-			retVal += -np.inf
+        # dphi
+        tol = 1.0e-6
+        try:
+            q = getattr(self,'q')
+            dphi = getattr(self,'dphi')
+            maxphi = roche.findphi(q.currVal,90.0) #dphi when i is slightly less than 90
+            if dphi.currVal > maxphi-tol:
+                retVal += -np.inf
+            else:
+                retVal += dphi.prior.ln_prob(dphi.currVal)
+        except:
+            # we get here when roche.findphi raises error - usually invalid q
+            retVal += -np.inf
         
         #Disc radius (XL1) 
-    	try:
-    		q = getattr(self,'q')
-        	xl1 = roche.xl1(q) # xl1/a
-        	rdisc = getattr(self,'rdisc')
-        	maxrdisc = 0.46/xl1 # maximum size disc can be without precessing
-        	if rdisc.currVal > maxrdisc:
-        		retVal += -np.inf
-        	else:
-        		retVal += rdisc.prior.ln_prob(rdisc.currVal)
-    	except:
-        	# we get here when roche.findphi raises error - usually invalid q
-        	retVal += -np.inf
+        try:
+            q = getattr(self,'q')
+            xl1 = roche.xl1(q.currVal) # xl1/a
+            maxrdisc = 0.46/xl1 # maximum size disc can be without precessing
+            rdiscArr = getattr(self,'rdisc')
+            for iecl in range(self.necl):
+                rdisc = rdiscArr[iecl]
+                if rdisc.currVal > maxrdisc:
+                    retVal += -np.inf
+                else:
+                    retVal += rdisc.prior.ln_prob(rdisc.currVal)
+        except:
+            # we get here when roche.findphi raises error - usually invalid q
+            retVal += -np.inf
         
         #BS scale (XL1)
-    	rwd = getattr(self,'rwd')
-    	scale = getattr(self,'scale')
-    	minscale = rwd/3.
-    	maxscale = rwd*3.
-    	if scale < minscale or scale > maxscale:
-    		retVal += -np.inf
-    	else:
-    		retVal += scale.prior.ln_prob(scale.currVal)
-    		
-    	#BS az
-    	slop = 40.0
-		try:
-        	# find position of bright spot where it hits disc
-        	# will fail if q invalid
-        	q = getattr(self,'q')
-        	xl1 = roche.xl1(q) # xl1/a
-        	rdisc = getattr(self,'rdisc')
-        	rd_a = rdisc*xl1
-        	az = getattr(self,'az')
-       		# Does stream miss disc? (disc/a < 0.2 or > 0.65 )
-        	# if so, Tom's code will fail
-        	x,y,vx,vy = roche.bspot(q,rd_a)
-        	# find tangent to disc at this point
-        	alpha = np.degrees(np.arctan2(y,x))
-        	# alpha is between -90 and 90. if negative spot lags disc ie alpha > 90
-        	if alpha < 0: alpha = 90-alpha
-        	tangent = alpha + 90 # disc tangent
-    		minaz = max(0,tangent-slop)
-    		maxaz = min(178,tangent+slop)
-    		if az < minaz or az > maxaz:
-    			retVal += -np.inf
-    		else:
-    			retVal += az.prior.ln_prob(az.currVal)
-    	except:
-    		# we get here when roche.findphi raises error - usually invalid q
-        	retVal += -np.inf
-        	
+        rwd = getattr(self,'rwd')
+        minscale = rwd.currVal/3
+        maxscale = rwd.currVal*3
+        scaleArr = getattr(self,'scale')
+        for iecl in range(self.necl):
+            scale = scaleArr[iecl]
+            if scale.currVal < minscale or scale.currVal > maxscale:
+                retVal += -np.inf
+            else:
+                retVal += scale.prior.ln_prob(scale.currVal)
+            
+        #BS az
+        slop = 40.0
+        try:
+            # find position of bright spot where it hits disc
+            # will fail if q invalid
+            q = getattr(self,'q')
+            xl1 = roche.xl1(q.currVal) # xl1/a
+            rdiscArr = getattr(self,'rdisc')
+            azArr = getattr(self,'az')
+            for iecl in range(self.necl):
+                rdisc = rdiscArr[iecl]
+                rd_a = rdisc.currVal*xl1
+                az = azArr[iecl]
+                # Does stream miss disc? (disc/a < 0.2 or > 0.65 )
+                # if so, Tom's code will fail
+                x,y,vx,vy = roche.bspot(q.currVal,rd_a)
+                # find tangent to disc at this point
+                alpha = np.degrees(np.arctan2(y,x))
+                # alpha is between -90 and 90. if negative spot lags disc ie alpha > 90
+                if alpha < 0: alpha = 90-alpha
+                tangent = alpha + 90 # disc tangent
+                minaz = max(0,tangent-slop)
+                maxaz = min(178,tangent+slop)
+                if az.currVal < minaz or az.currVal > maxaz:
+                    retVal += -np.inf
+                else:
+                    retVal += az.prior.ln_prob(az.currVal)
+        except:
+            # we get here when roche.findphi raises error - usually invalid q
+            retVal += -np.inf
+            
         return retVal
         
     def ln_prior(self):
-    	# this needs to be different in GPLCModel
-    	return self.ln_prior_base()
+        # this needs to be different in GPLCModel
+        return self.ln_prior_base()
  
     def ln_likelihood(self,parList,phi,y,e,width=None):
         lnlike = 0.0
@@ -276,110 +283,77 @@ class LCModel(MutableSequence):
             return lnp
             
 class GPLCModel(LCModel):
-	def __init__(self,parList,nel_disc=1000,nel_donor=400):
-		LCModel.__init__(self,parList,nel_disc,nel_donor)
-		# make sure GP params are variables
+    def __init__(self,parList,nel_disc=1000,nel_donor=400):
+        super(GPLCModel,self).__init__(parList,nel_disc,nel_donor)
+        # make sure GP params are variable
         self.amp_gp.isVar = True
         self.tau_gp.isVar = True
         
-    def addEclipse(self,parList):
-    	LCModel.addEclipse(self,parList)
-    	
-    def calc(self,ecl,phi,width=None):
-    	LCModel.calc(self,ecl,phi,width)
-    	
-    def chisq(self,phi,y,e,width=None):
-    	LCModel.chisq(self,phi,y,e,width)
-    	
-	def ln_prior_base(self):
-		LCModel.ln_prior_base(self)
-    	
-	def ln_prior_gp(self):
-		retVal=0.0
-		priors_pars_shared = ['amp_gp','tau_gp']
-		for par in priors_pars_shared:
+    def ln_prior_gp(self):
+        retVal=0.0
+        priors_pars_shared = ['amp_gp','tau_gp']
+        for par in priors_pars_shared:
             param = getattr(self,par)
             if param.isVar:
                 retVal += param.prior.ln_prob(param.currVal)
-		return retVal
-		
-	def ln_prior(self):
-		return self.ln_prior_base() + self.ln_prior_gp()	
-		
-	def createGP(self,parList,phi):
-    	a, tau = np.exp(parList[:2])
-    	dphi, phiOff = parList[7],parList[15]
-    
-    	k_out = a*GP.Matern32Kernel(tau)
-    	k_in  = 0.01*a*GP.Matern32Kernel(tau)
-    
-    	# Find location of all changepoints
-    	changepoints = []
-    	for n in range (int(phi[1]),int(phi[-1])+1,1):
-        	changepoints.append(n-dphi/2.)
-        	changepoints.append(n+dphi/2.)  
+        return retVal
+        
+    def ln_prior(self):
+        return self.ln_prior_base() + self.ln_prior_gp()    
+        
+    def createGP(self,parList,phi):
+        # check this, does it change if complex?
+        a, tau = np.exp(parList[:2])
+        dphi, phiOff = parList[7],parList[15]
+        
+        k_out = a*GP.Matern32Kernel(tau)
+        k_in    = 0.01*a*GP.Matern32Kernel(tau)
+        
+        # Find location of all changepoints
+        changepoints = []
+        for n in range (int(phi[1]),int(phi[-1])+1,1):
+            changepoints.append(n-dphi/2.)
+            changepoints.append(n+dphi/2.)  
 
-    	# Depending on number of changepoints, create kernel structure
-    	kernel_struc = [k_out]    
-    	for k in range (int(phi[1]),int(phi[-1])+1,1):
-        	kernel_struc.append(k_in)
-        	kernel_struc.append(k_out)
-    
-    	# create kernel with changepoints 
-    	# obviously need one more kernel than changepoints!
-    	kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
-    
-    	# create GPs using this kernel
-    	gp = GP.GaussianProcess(kernel)
-    	return gp
+        # Depending on number of changepoints, create kernel structure
+        kernel_struc = [k_out]      
+        for k in range (int(phi[1]),int(phi[-1])+1,1):
+            kernel_struc.append(k_in)
+            kernel_struc.append(k_out)
+        
+        # create kernel with changepoints 
+        # obviously need one more kernel than changepoints!
+        kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
+        
+        # create GPs using this kernel
+        gp = GP.GaussianProcess(kernel)
+        return gp
         
     def ln_likelihood(self,parList,phi,y,e,width=None):
-		# new ln_like function, using GPs, looping over each eclipse
-		lnlike = 0.0
-		for iecl in range(self.necl):
-			gp = createGP(parList,phi)
-    		gp.compute(phi,e)
-    		resids = y - LCModel(parList[2:]).cv
-    		
-    	# check for bugs in model
-    	if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-        print parList
-        print 'Warning: model gave nan or inf answers'
-        #raise Exception('model gave nan or inf answers')
-        return -np.inf
+        # new ln_like function, using GPs, looping over each eclipse
+        lnlike = 0.0
         
-        # now calculate ln_likelihood
-        
-        lnlike += gp.lnlikelihood(resids)
-        
-    	return -0.5*(lnlike + self.chisq(phi,y,e,width))
-        
-	'''def lnlike_gp(params, phi, width, y, e, cv): 
-    gp = createGP(params,phi)
-    gp.compute(phi,e)
-    
-    resids = y - model(params[2:],phi,width,cv)
-    
-    # check for bugs in model
-    if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-        print params
-        print 'Warning: model gave nan or inf answers'
-        #raise Exception('model gave nan or inf answers')
-        return -np.inf
- 
-    # now calculate ln_likelihood
-    return gp.lnlikelihood(resids) '''
-		
-		########
-		
-		'''lnlike = 0.0
         for iecl in range(self.necl):
-            lnlike += np.sum( np.log (2.0*np.pi*e[iecl]**2) )
-        return -0.5*(lnlike + self.chisq(phi,y,e,width))'''
-        
-    def ln_prob(self,parList,phi,y,e,width=None):
-    	LCModel.ln_prob(self,parList,phi,y,e,width)
-    	
+            gp = self.createGP(parList,phi[iecl])
+            gp.compute(phi[iecl],e[iecl])
+            # calculate the model
+            if width:
+                thisWidth=width[iecl]
+            else:
+                thisWidth=None
+            resids = y[iecl] - self.calc(iecl,phi[iecl],thisWidth)
+                                
+            # check for bugs in model
+            if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
+                print parList
+                print warning.warn('model gave nan or inf answers')
+                return -np.inf
+                                
+            # now calculate ln_likelihood
+                                
+            lnlike += gp.lnlikelihood(resids)         
+        return lnlike
+            
 def parseInput(file):
         blob = np.loadtxt(file,dtype='string',delimiter='\n')
         input_dict = {}
@@ -458,17 +432,15 @@ if __name__ == "__main__":
     #The next column is the CV flux
     #The next columns are the flux from wd, bright spot, disc and donor
     """
-
     # create a model from the first eclipses parameters
     parList = [amp_gp,tau_gp,fwd[0],fdisc[0],fbs[0],fd[0],q,dphi,rdisc[0],ulimb[0],rwd, \
                 scale[0],az[0],frac[0],rexp[0],off[0]]
     if complex:
         parList.extend([exp1[0],exp2[0],tilt[0],yaw[0]])
     if useGP:
-		model = GPLCModel(parList)
+        model = GPLCModel(parList)
     else:
-		model = LCModel(parList)
-
+        model = LCModel(parList)
     # then add in additional eclipses as necessary
     for ecl in range(1,neclipses):
         parList = [fwd[ecl],fdisc[ecl],fbs[ecl],fd[ecl],rdisc[ecl],ulimb[ecl], \
@@ -491,10 +463,10 @@ if __name__ == "__main__":
         wt = np.mean(np.diff(xt))*np.ones_like(xt)/2.
         #xt,wt,yt,et,_ = np.loadtxt(file).T
         mask = (xt>start)&(xt<end)
-     	x.append(xt[mask])
-     	y.append(yt[mask])
-     	e.append(et[mask])
-     	w.append(wt[mask])
+        x.append(xt[mask])
+        y.append(yt[mask])
+        e.append(et[mask])
+        w.append(wt[mask])
         
     
     # is our starting position legal?
@@ -504,12 +476,11 @@ if __name__ == "__main__":
         
     npars = model.npars
     params = [par for par in model]
-    
     def ln_prob(pars,model,x,y,e,w):
         # we update the model to contain the params suggested by emcee, and calculate lnprob
         for i in range(model.npars):
             model[i] = pars[i]
-        return model.ln_prob(x,y,e,w)
+        return model.ln_prob(params,x,y,e,w)
 
     if toFit:
         # Initialize the MPI-based pool used for parallelization.
@@ -523,8 +494,7 @@ if __name__ == "__main__":
             sys.exit(0)
         '''    
         p0 = np.array(params)
-        
-        print ln_prob(p0,model,x,y,e,w)
+        print "initial ln probability = %.2f" % ln_prob(p0,model,x,y,e,w)
         p0 = emcee.utils.sample_ball(p0,scatter*p0,size=nwalkers)
         sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[model,x,y,e,w],threads=nthreads)
 
@@ -564,19 +534,19 @@ if __name__ == "__main__":
         print "\nShared params:\n"
         p = 0
         for i in range(0,7):
-        	if p == 2 or p == 3 or p == 4 or p == 5 or p == 8 or p == 9:
+            if p == 2 or p == 3 or p == 4 or p == 5 or p == 8 or p == 9:
                     p += 1
-        	else:
-        		par = chain[:,p]
-        		lolim,best,uplim = np.percentile(par,[16,50,84])
-        		print "%s = %f +%f -%f" % (pars_shared[i],best,uplim-best,best-lolim)
-        		p += 1
-        		'''params.append(best)
-        		model[i] = best'''
+            else:
+                par = chain[:,p]
+                lolim,best,uplim = np.percentile(par,[16,50,84])
+                print "%s = %f +%f -%f" % (pars_shared[i],best,uplim-best,best-lolim)
+                p += 1
+                '''params.append(best)
+                model[i] = best'''
                 
         ind_npars = (npars-5)/neclipses
         a = 0 
-        b = 5     
+        b = 4     
         
         for iecl in range(neclipses):
             print "\nindividual params for eclipse %d:\n" % (iecl+1)
@@ -584,29 +554,30 @@ if __name__ == "__main__":
             a += (ind_npars*iecl)
             b += (a + ind_npars)
             if a <= npars:
-				for i in range(a,b):
-					if p == 0 or p == 1 or p == 6 or p == 7 or p == 10:
-						p += 1
-					else:
-						if iecl == 0:
-							par = chain[:,p]
-							lolim,best,uplim = np.percentile(par,[16,50,84])
-							print "%s = %f +%f -%f" % (pars_unique[i],best,uplim-best,best-lolim)
-						else:
-							par = chain[:,p+5] 
-							lolim,best,uplim = np.percentile(par,[16,50,84])
-							print "%s = %f +%f -%f" % (pars_unique[i],best,uplim-best,best-lolim)
-						p += 1	  
-				a = 5
-				b = 0
+                for i in range(a,b):
+                    if p == 0 or p == 1 or p == 6 or p == 7 or p == 10:
+                        p += 1
+                    else:
+                        if iecl == 0:
+                            par = chain[:,p]
+                            lolim,best,uplim = np.percentile(par,[16,50,84])
+                            print "%s = %f +%f -%f" % (pars_unique[i],best,uplim-best,best-lolim)
+                        else:
+                            par = chain[:,p+5] 
+                            lolim,best,uplim = np.percentile(par,[16,50,84])
+                            print "%s = %f +%f -%f" % (pars_unique[i],best,uplim-best,best-lolim)
+                        p += 1    
+                a = 4
+                b = 0
             '''params.append(best)
             model[i] = best'''
                          
     print '\nFor this model:\n'
     dataSize = np.sum((xa.size for xa in x))
-    print "Chisq          =  %.2f (%d D.O.F)" % (model.chisq(x,y,e,w),dataSize - model.npars - 1)
-    print "ln probability = %.2f" % model.ln_prob(x,y,e,w)
+    print "Chisq          = %.2f (%d D.O.F)" % (model.chisq(x,y,e,w),dataSize - model.npars - 1)
     print "ln prior       = %.2f" % model.ln_prior()
+    print "ln likelihood = %.2f" % model.ln_likelihood(params,x,y,e,w)
+    print "ln probability = %.2f" % model.ln_prob(params,x,y,e,w)
     
     # Plot model & data
     gs = gridspec.GridSpec(2,neclipses,height_ratios=[2,1])
