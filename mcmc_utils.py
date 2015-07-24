@@ -84,14 +84,15 @@ class Prior(object):
 class Param(object):
 	'''A Param needs a starting value, a current value, and a prior
 	and a flag to state whether is should vary'''
-	def __init__(self,startVal,prior,isVar=True):
+	def __init__(self,name,startVal,prior,isVar=True):
+		self.name     = name
 		self.startVal = startVal
 		self.prior    = prior
 		self.currVal  = startVal
 		self.isVar    = isVar
 		
 	@classmethod
-	def fromString(cls,parString):
+	def fromString(cls,name,parString):
 	    fields = parString.split()
 	    val = float(fields[0])
 	    priorType = fields[1].strip()
@@ -101,7 +102,7 @@ class Param(object):
 	        isVar = bool(fields[4])
 	    else:
 	        isVar = True
-	    return 	cls(val, Prior(priorType,priorP1,priorP2), isVar)
+	    return 	cls(name, val, Prior(priorType,priorP1,priorP2), isVar)
 	
 def fracWithin(pdf,val):
 	return pdf[pdf>=val].sum()
