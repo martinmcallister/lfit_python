@@ -1,10 +1,10 @@
 # MCMC run parameters
-nburn    = 1000 # number of steps to use in burn-in phase
-nprod    = 1000 # number of steps to use in production phase
+nburn    = 1 # number of steps to use in burn-in phase
+nprod    = 1 # number of steps to use in production phase
 nwalkers = 200  # must be even multiple of npars (npars = 4 + 10*necl or 4+14*necl)
 nthread  = 6    # number of CPU threads to use
 scatter  = 0.01 # fractional scatter to add to starting ball of parameters
-fit      = 0 # actually fit (1), or just plot model as specified (0)
+fit      = 1 # actually fit (1), or just plot model as specified (0)
 
 # eclipse independent parameters 
 # all model parameters have both a starting value and a prior

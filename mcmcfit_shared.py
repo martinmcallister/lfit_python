@@ -143,7 +143,7 @@ class LCModel(MutableSequence):
         eclPars = [ \
             self.wdFlux[ecl].currVal, self.dFlux[ecl].currVal, self.sFlux[ecl].currVal, \
             self.rsFlux[ecl].currVal, self.q.currVal, self.dphi.currVal, self.rdisc[ecl].currVal, \
-            self.ulimb.currVal, self.rwd.currVal, self.scale[ecl].currVal, \
+            self.ulimb[ecl].currVal, self.rwd.currVal, self.scale[ecl].currVal, \
             self.az[ecl].currVal, self.fis[ecl].currVal, self.dexp[ecl].currVal, \
             self.phi0[ecl].currVal]
         if self.complex:
@@ -222,8 +222,12 @@ if __name__ == "__main__":
     toFit    = int( input_dict['fit'] )
     
     neclipses = int( input_dict['neclipses'] )
-    complex    = bool( input_dict['complex'] )
-    
+    complex    = bool( int(input_dict['complex']) )
+    if complex:
+        print ('Using complex BS model')
+    else:
+        print ("Using simple BS model")
+        
     q      = Param.fromString( input_dict['q'] )
     dphi   = Param.fromString( input_dict['dphi'] )
     rwd    = Param.fromString( input_dict['rwd'] )
@@ -387,15 +391,13 @@ if __name__ == "__main__":
                 
         ind_npars = (npars-3)/neclipses
         a = 0 
-        b = 4     
+        b = 3     
         
         for iecl in range(neclipses):
             print "\nindividual params for eclipse %d:\n" % (iecl+1)
             p = 0+(iecl*ind_npars)
             a += (ind_npars*iecl)
             b += (a + ind_npars)
-            print a
-            print b
             if a <= npars:
 				for i in range(a,b):
 					if p == 4 or p == 5 or p == 8:
@@ -406,11 +408,11 @@ if __name__ == "__main__":
 							lolim,best,uplim = np.percentile(par,[16,50,84])
 							print "%s = %f +%f -%f" % (pars_unique[i],best,uplim-best,best-lolim)
 						else:
-							par = chain[:,p+4] 
+							par = chain[:,p+3] 
 							lolim,best,uplim = np.percentile(par,[16,50,84])
 							print "%s = %f +%f -%f" % (pars_unique[i],best,uplim-best,best-lolim)
 						p += 1	  
-				a = 4
+				a = 3
 				b = 0
             '''params.append(best)
             model[i] = best'''
@@ -453,7 +455,7 @@ if __name__ == "__main__":
         ax2 = plt.subplot(gs[1,iecl],sharex=ax1)
         ax2.errorbar(xp,yp-yp_fit,yerr=ep,color='k',fmt='.',capsize=0,alpha=0.5)
         #ax2.set_xlim(ax1.get_xlim())
-        ax2.set_xlim(-0.1,0.15)
+        #ax2.set_xlim(-0.1,0.15)
 
         #labels
         if LHplot:
@@ -468,6 +470,6 @@ if __name__ == "__main__":
         
         
     plt.savefig('bestFit.pdf')
-    plt.xlim(-0.1,0.15)
+    #plt.xlim(-0.1,0.15)
     plt.show()
      
