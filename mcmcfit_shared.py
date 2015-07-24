@@ -384,6 +384,7 @@ if __name__ == "__main__":
     useGP      = bool( int(input_dict['useGP']) )
     amp_gp = Param.fromString( input_dict['amp_gp'])
     tau_gp = Param.fromString( input_dict['tau_gp'])
+
     q      = Param.fromString( input_dict['q'] )
     dphi   = Param.fromString( input_dict['dphi'] )
     rwd    = Param.fromString( input_dict['rwd'] )
@@ -611,7 +612,7 @@ if __name__ == "__main__":
         ax2 = plt.subplot(gs[1,iecl],sharex=ax1)
         ax2.errorbar(xp,yp-yp_fit,yerr=ep,color='k',fmt='.',capsize=0,alpha=0.5)
         #ax2.set_xlim(ax1.get_xlim())
-        ax2.set_xlim(-0.1,0.15)
+        #ax2.set_xlim(-0.1,0.15)
 
         #labels
         if LHplot:
@@ -626,6 +627,6 @@ if __name__ == "__main__":
         
         
     plt.savefig('bestFit.pdf')
-    plt.xlim(-0.1,0.15)
+    #plt.xlim(-0.1,0.15)
     plt.show()
      
