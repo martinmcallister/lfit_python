@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
+import copy
 
 class Model():
 	"""Base (abstract) class for complex models to be fit with emcee.
@@ -12,7 +13,7 @@ class Model():
 		
 		Args:
 			plist (list): List of mcmc_utils.Param objects"""
-		self.plist = plist
+		self.plist = copy.copy(plist)
 		
 	@property
 	def lookuptable(self):
@@ -46,7 +47,7 @@ class Model():
 			variable_params[i].currVal = val
 			
 	def ln_prior(self):
-		"""Return the natural log of the prior probability of this model
+		"""Return the natural log of the prior probability of this model.
 		
 		If model has more prior information not captured in the priors of
 		the parameters, the details of such additional prior information must

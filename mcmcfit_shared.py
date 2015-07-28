@@ -196,14 +196,14 @@ class LCModel(Model):
         return retVal
          
     def ln_like(self,phi,y,e,width=None):
-    	"""Calculates the natural log of the likelihood"""
-    	lnlike = 0.0
-    	for iecl in range(self.necl):
+        """Calculates the natural log of the likelihood"""
+        lnlike = 0.0
+        for iecl in range(self.necl):
             lnlike += np.sum(np.log(2.0*np.pi*e[iecl]**2))
         return -0.5*(lnlike + self.chisq(phi,y,e,width))
         
     def ln_prob(self,parList,phi,y,e,width=None):
-    	"""Calculates the natural log of the posterior probability (ln_prior + ln_like)"""
+        """Calculates the natural log of the posterior probability (ln_prior + ln_like)"""
         # The model is updated to reflect the passed parameters
         self.pars = parList
         lnp = self.ln_prior()
@@ -216,85 +216,85 @@ class LCModel(Model):
             return lnp
             
 class GPLCModel(LCModel):
-	"""CV lightcurve model for multiple eclipses, with added Gaussian process fitting"""
-	
-	def __init__(self,parList,complex,amp_gp,tau_gp,nel_disc=1000,nel_donor=400):
-		"""Initialise model.
-		
-		Parameter list should be a 16 element (non-complex BS) or 20 element (complex BS)
-		dictionary of Param objects. These are:
-		amp_gp, tau_gp, wdFlux, dFlux, sFlux, rsFlux, q, dphi, rdisc, ulimb, rwd, scale, az, fis, dexp, phi0
-		And additional params: exp1, exp2, tilt, yaw"""
-		
-		super(GPLCModel,self).__init__(parList,complex,nel_disc,nel_donor)
-		# Make sure GP parameters are variable when using this model
-		self.plist.append(amp_gp)
-		self.plist.append(tau_gp)
-		
-	def createGP(self,phi):
-		"""Constructs a kernel, which is used to create Gaussian processes.
-		
-		Uses values for the two hyperparameters (amp,tau) and dphi, this function: creates
-		kernels for both inside and out of eclipse, works out the location of any changepoints
-		present, constructs a single (mixed) kernel and uses this kernel to create GPs"""
-	
-		# Get objects for amp_gp, tau_gp and find the exponential of their current values
-		ln_amp = self.getParam('amp_gp')
-		ln_tau = self.getParam('tau_gp')
-		amp = np.exp(ln_amp.currVal)
-		tau = np.exp(ln_tau.currVal)
-		# Also get object for dphi as this is required to determine changepoints
-		dphi = self.getParam('dphi')
-		
-		# Calculate kernels for both out of and in eclipse WD eclipse
-		# Kernel inside of WD has much smaller amplitude than that of outside eclipse
-		k_out = amp*GP.Matern32Kernel(tau)
-		k_in	= 0.01*amp*GP.Matern32Kernel(tau)
-		
-		# Find location of all changepoints
-		changepoints = []
-		for n in range (int(phi[1]),int(phi[-1])+1,1):
-			changepoints.append(n-dphi.currVal/2.)
-			changepoints.append(n+dphi.currVal/2.)	
+    """CV lightcurve model for multiple eclipses, with added Gaussian process fitting"""
+    
+    def __init__(self,parList,complex,amp_gp,tau_gp,nel_disc=1000,nel_donor=400):
+        """Initialise model.
+        
+        Parameter list should be a 16 element (non-complex BS) or 20 element (complex BS)
+        dictionary of Param objects. These are:
+        amp_gp, tau_gp, wdFlux, dFlux, sFlux, rsFlux, q, dphi, rdisc, ulimb, rwd, scale, az, fis, dexp, phi0
+        And additional params: exp1, exp2, tilt, yaw"""
+        
+        super(GPLCModel,self).__init__(parList,complex,nel_disc,nel_donor)
+        # Make sure GP parameters are variable when using this model
+        self.plist.append(amp_gp)
+        self.plist.append(tau_gp)
+        
+    def createGP(self,phi):
+        """Constructs a kernel, which is used to create Gaussian processes.
+        
+        Uses values for the two hyperparameters (amp,tau) and dphi, this function: creates
+        kernels for both inside and out of eclipse, works out the location of any changepoints
+        present, constructs a single (mixed) kernel and uses this kernel to create GPs"""
+    
+        # Get objects for amp_gp, tau_gp and find the exponential of their current values
+        ln_amp = self.getParam('amp_gp')
+        ln_tau = self.getParam('tau_gp')
+        amp = np.exp(ln_amp.currVal)
+        tau = np.exp(ln_tau.currVal)
+        # Also get object for dphi as this is required to determine changepoints
+        dphi = self.getParam('dphi')
+        
+        # Calculate kernels for both out of and in eclipse WD eclipse
+        # Kernel inside of WD has much smaller amplitude than that of outside eclipse
+        k_out = amp*GP.Matern32Kernel(tau)
+        k_in    = 0.01*amp*GP.Matern32Kernel(tau)
+        
+        # Find location of all changepoints
+        changepoints = []
+        for n in range (int(phi[1]),int(phi[-1])+1,1):
+            changepoints.append(n-dphi.currVal/2.)
+            changepoints.append(n+dphi.currVal/2.)  
 
-		# Depending on number of changepoints, create kernel structure
-		kernel_struc = [k_out]		
-		for k in range (int(phi[1]),int(phi[-1])+1,1):
-			kernel_struc.append(k_in)
-			kernel_struc.append(k_out)
-		
-		# Create kernel with changepoints 
-		kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
-		
-		# Create GPs using this kernel
-		gp = GP.GaussianProcess(kernel)
-		return gp
-		
-	def ln_like(self,phi,y,e,width=None):
-		"""Calculates the natural log of the likelihood.
-		
-		This alternative ln_like function uses the createGP function to create Gaussian
-		processes"""
-		
-		lnlike = 0.0
-		# For each eclipse, create (and compute) Gaussian process and calculate the model
-		for iecl in range(self.necl):
-			gp = self.createGP(phi[iecl])
-			gp.compute(phi[iecl],e[iecl])
-			if width:
-				thisWidth=width[iecl]
-			else:
-				thisWidth=None
-			resids = y[iecl] - self.calc(iecl,phi[iecl],thisWidth)
-								
-			# Check for bugs in model
-			if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-				print warning.warn('model gave nan or inf answers')
-				return -np.inf
-								
-			# Calculate ln_like	using lnlikelihood function from GaussianProcess.py				
-			lnlike += gp.lnlikelihood(resids)		  
-		return lnlike
+        # Depending on number of changepoints, create kernel structure
+        kernel_struc = [k_out]      
+        for k in range (int(phi[1]),int(phi[-1])+1,1):
+            kernel_struc.append(k_in)
+            kernel_struc.append(k_out)
+        
+        # Create kernel with changepoints 
+        kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
+        
+        # Create GPs using this kernel
+        gp = GP.GaussianProcess(kernel)
+        return gp
+        
+    def ln_like(self,phi,y,e,width=None):
+        """Calculates the natural log of the likelihood.
+        
+        This alternative ln_like function uses the createGP function to create Gaussian
+        processes"""
+        
+        lnlike = 0.0
+        # For each eclipse, create (and compute) Gaussian process and calculate the model
+        for iecl in range(self.necl):
+            gp = self.createGP(phi[iecl])
+            gp.compute(phi[iecl],e[iecl])
+            if width:
+                thisWidth=width[iecl]
+            else:
+                thisWidth=None
+            resids = y[iecl] - self.calc(iecl,phi[iecl],thisWidth)
+                                
+            # Check for bugs in model
+            if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
+                print warning.warn('model gave nan or inf answers')
+                return -np.inf
+                                
+            # Calculate ln_like using lnlikelihood function from GaussianProcess.py             
+            lnlike += gp.lnlikelihood(resids)         
+        return lnlike
             
 def parseInput(file):
     """Splits input file up making it easier to read"""
@@ -302,9 +302,9 @@ def parseInput(file):
     blob = np.loadtxt(file,dtype='string',delimiter='\n')
     input_dict = {}
     for line in blob: 
-    	# Each line is then split at the equals sign
-		k,v = line.split('=')
-		input_dict[k.strip()] = v.strip()
+        # Each line is then split at the equals sign
+        k,v = line.split('=')
+        input_dict[k.strip()] = v.strip()
     return input_dict
             
 if __name__ == "__main__":
@@ -363,6 +363,12 @@ if __name__ == "__main__":
     else:
         model = LCModel(parList,complex)
         
+    # pickle is used for parallelisation
+    # pickle cannot pickle methods of classes, so we wrap
+    # the ln_prob function here to make something that can be pickled
+    def ln_prob(parList,phi,y,e,width=None):
+    	return model.ln_prob(parList,phi,y,e,width=None)
+    
     # Add in additional eclipses as necessary
     parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
         'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
@@ -424,7 +430,7 @@ if __name__ == "__main__":
         # Produce a ball of walkers around p0
         p0 = emcee.utils.sample_ball(p0,scatter*p0,size=nwalkers)
         # Instantiate Ensemble sampler
-        sampler = emcee.EnsembleSampler(nwalkers,npars,model.ln_prob,args=[x,y,e,w],threads=nthreads)
+        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)
 
         # Burn-in
         print 'starting burn-in'
@@ -451,7 +457,7 @@ if __name__ == "__main__":
         # from mcmc_utils.py
         chain = flatchain(sampler.chain,npars,thin=10)
         
-        # Print out parameters
+        # Print out individual parameters
         params = []
         for i in range(npars):
             par = chain[:,i]
