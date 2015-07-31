@@ -119,7 +119,7 @@ class DrasticChangepointKernel(Kernel):
             # insert gram matrix in correct place 
             self.covar[startInd:endInd,startInd:endInd] += covar            
 
-        self.factor, self.flag = cho_factor(covar)
+        self.factor, self.flag = cho_factor(self.covar)
         self.logdet = 2*np.sum(np.log(np.diag(self.factor)))
         self.computed = True
     
