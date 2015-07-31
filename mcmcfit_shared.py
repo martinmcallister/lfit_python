@@ -434,7 +434,17 @@ if __name__ == "__main__":
             sys.exit(0)
         '''    
         p0 = np.array(params) # Starting parameters
-        print "initial ln probability = %.2f" % model.ln_prob(p0,x,y,e,w)
+        
+        '''
+        BIZARRO WORLD!
+        Calling the ln_prob function once outside of multiprocessing
+        causes multiprocessing calls to the same function to hang or segfault
+        when using numpy/scipy on OS X. This is a known bug when using mp
+        in combination with the BLAS library (cho_factor uses this).
+        
+        http://stackoverflow.com/questions/19705200/multiprocessing-with-numpy-makes-python-quit-unexpectedly-on-osx
+        '''
+        # print "initial ln probability = %.2f" % model.ln_prob(p0,x,y,e,w)
         # Produce a ball of walkers around p0
         p0 = emcee.utils.sample_ball(p0,scatter*p0,size=nwalkers)
         
