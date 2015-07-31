@@ -97,8 +97,7 @@ class DrasticChangepointKernel(Kernel):
         self.computed = False
         assert x.ndim == 1, "Only 1D kernels are supported"
         assert len(errs) == len(x), "Length of error array must match 2nd dimension of x array"
-        print 'starting compute'
-        #print id(self)
+
         num_points = len(errs)
         # diagonal part of covariance matrix (white noise terms)
         self.covar = errs*errs*np.eye(num_points)
@@ -119,16 +118,8 @@ class DrasticChangepointKernel(Kernel):
             covar = kernel._evaluate(deltaT,0) 
             # insert gram matrix in correct place 
             self.covar[startInd:endInd,startInd:endInd] += covar            
-        
-        covar = copy.copy(self.covar)
-        try:
-			print id(covar), ctypes.addressof(covar)
-        except Exception as e:
-			print e
 
-        factor, flag = cho_factor(covar)
-        print 'here'
-        self.factor, self.flag = factor, flag
+        self.factor, self.flag = cho_factor(covar)
         self.logdet = 2*np.sum(np.log(np.diag(self.factor)))
         self.computed = True
     

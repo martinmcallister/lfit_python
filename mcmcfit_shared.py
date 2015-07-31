@@ -271,13 +271,12 @@ class GPLCModel(LCModel):
         # Create GPs using this kernel
         gp = GP.GaussianProcess(kernel)
         return gp
-    '''    
+            
     def ln_like(self,phi,y,e,width=None):
         """Calculates the natural log of the likelihood.
         
         This alternative ln_like function uses the createGP function to create Gaussian
         processes"""
-        print ('calling ln_like')
         lnlike = 0.0
         # For each eclipse, create (and compute) Gaussian process and calculate the model
         for iecl in range(self.necl):
@@ -297,12 +296,6 @@ class GPLCModel(LCModel):
             # Calculate ln_like using lnlikelihood function from GaussianProcess.py             
             lnlike += gp.lnlikelihood(resids)         
         return lnlike
-    '''
-    def ln_like(self,phi,y,e,width=None):
-    	for iecl in range(self.necl):
-			gp = self.createGP(phi[iecl])
-			gp.compute(phi[iecl],e[iecl])
-    	return super(GPLCModel,self).ln_like(phi,y,e,width)
     	        
 def parseInput(file):
     """Splits input file up making it easier to read"""
