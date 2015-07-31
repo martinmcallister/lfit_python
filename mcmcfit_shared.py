@@ -253,13 +253,15 @@ class GPLCModel(LCModel):
         
         # Find location of all changepoints
         changepoints = []
-        for n in range (int(phi[1]),int(phi[-1])+1,1):
+        # the following range construction gives a list
+        # of all mid-eclipse phases within phi array
+        for n in range (int( phi.min() ), int( phi.max() )+1, 1):
             changepoints.append(n-dphi.currVal/2.)
             changepoints.append(n+dphi.currVal/2.)  
 
         # Depending on number of changepoints, create kernel structure
         kernel_struc = [k_out]      
-        for k in range (int(phi[1]),int(phi[-1])+1,1):
+        for k in range (int( phi.min() ), int( phi.max() )+1, 1):
             kernel_struc.append(k_in)
             kernel_struc.append(k_out)
         
@@ -269,13 +271,13 @@ class GPLCModel(LCModel):
         # Create GPs using this kernel
         gp = GP.GaussianProcess(kernel)
         return gp
-        
+    '''    
     def ln_like(self,phi,y,e,width=None):
         """Calculates the natural log of the likelihood.
         
         This alternative ln_like function uses the createGP function to create Gaussian
         processes"""
-        
+        print ('calling ln_like')
         lnlike = 0.0
         # For each eclipse, create (and compute) Gaussian process and calculate the model
         for iecl in range(self.necl):
@@ -295,7 +297,13 @@ class GPLCModel(LCModel):
             # Calculate ln_like using lnlikelihood function from GaussianProcess.py             
             lnlike += gp.lnlikelihood(resids)         
         return lnlike
-            
+    '''
+    def ln_like(self,phi,y,e,width=None):
+    	for iecl in range(self.necl):
+			gp = self.createGP(phi[iecl])
+			gp.compute(phi[iecl],e[iecl])
+    	return super(GPLCModel,self).ln_like(phi,y,e,width)
+    	        
 def parseInput(file):
     """Splits input file up making it easier to read"""
     # Reads in input file and splits it into lines
@@ -429,6 +437,13 @@ if __name__ == "__main__":
         print "initial ln probability = %.2f" % model.ln_prob(p0,x,y,e,w)
         # Produce a ball of walkers around p0
         p0 = emcee.utils.sample_ball(p0,scatter*p0,size=nwalkers)
+        
+        '''
+        print 'probabilities of walker positions: '
+        for i, par in enumerate(p0):
+        	print '%d = %.2f' % (i,model.ln_prob(par,x,y,e,w))
+        '''
+        
         # Instantiate Ensemble sampler
         sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)
 

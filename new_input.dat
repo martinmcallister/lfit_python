@@ -1,8 +1,8 @@
 # MCMC run parameters
-nburn    = 20		# number of steps to use in burn-in phase
-nprod    = 20		# number of steps to use in production phase
-nwalkers = 250  	# must be even multiple of npars (npars = 4 + 10*necl or 4+14*necl)
-nthread  = 6    	# number of CPU threads to use
+nburn    = 10		# number of steps to use in burn-in phase
+nprod    = 10		# number of steps to use in production phase
+nwalkers = 40  	# must be even multiple of npars (npars = 4 + 10*necl or 4+14*necl)
+nthread  = 2  	# number of CPU threads to use
 scatter  = 0.01 	# fractional scatter to add to starting ball of parameters
 fit      = 1		# actually fit (1), or just plot model as specified (0)
 
@@ -20,7 +20,7 @@ dphi  	= 0.048844 uniform 0.001 0.063 1
 rwd   	= 0.025545 uniform 0.0001 0.1 1 
 
 # remaining parameters vary from eclipse to eclipse
-neclipses = 8
+neclipses = 1
 
 # what phases to plot/fit
 phi_start = -0.9
