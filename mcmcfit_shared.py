@@ -57,6 +57,8 @@ class LCModel(Model):
         # How many eclipses?
         self.necl = 1
 
+        
+
     def addEclipse(self,parList):
         """Allows additional eclipses to be added.
         
@@ -200,7 +202,7 @@ class LCModel(Model):
         lnlike = 0.0
         for iecl in range(self.necl):
             if width:
-            	thisWidth=width[iecl]
+                thisWidth=width[iecl]
             else:
                 thisWidth=None
             resids = y[iecl] - self.calc(iecl,phi[iecl],thisWidth)
@@ -239,7 +241,63 @@ class GPLCModel(LCModel):
         # Make sure GP parameters are variable when using this model
         self.plist.append(amp_gp)
         self.plist.append(tau_gp)
+        self._dist_cp = 10.0
+        self._oldq = 10.0
+        self._olddphi = 10.0
+        self._oldrwd = 10.0
         
+    def calcChangepoints(self,phi):
+            
+        # Also get object for dphi, q and rwd as this is required to determine changepoints
+        dphi = self.getParam('dphi')
+        q = self.getParam('q')
+        rwd = self.getParam('rwd')
+        phi0Template = 'phi0_{0}'
+    
+        dphi_change = np.fabs(self._olddphi - dphi.currVal)/dphi.currVal
+        q_change    = np.fabs(self._oldq - q.currVal)/q.currVal
+        rwd_change  = np.fabs(self._oldrwd - rwd.currVal)/rwd.currVal
+        
+        if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
+            # Calculate inclination
+            inc = roche.findi(q.currVal,dphi.currVal)
+            # Calculate wd contact phases 3 and 4
+            phi3, phi4 = roche.wdphases(q.currVal, inc, rwd.currVal, ntheta=10)
+            # Calculate length of wd egress
+            dpwd = phi4 - phi3
+            # Distance from changepoints to mideclipse
+            dist_cp = dphi.currVal/2.+dpwd/2.
+        else:
+           dist_cp = self._dist_cp
+                    
+        '''# Find location of all changepoints
+        for iecl in range(self.necl):
+            changepoints = []
+            phi0 = self.getParam(phi0Template.format(iecl))
+            # the following range construction gives a list
+            # of all mid-eclipse phases within phi array
+            for n in range (int( phi.min() ), int( phi.max() )+1, 1):
+                changepoints.append(n+phi0.currVal-dist_cp)
+                changepoints.append(n+phi0.currVal+dist_cp) '''
+    
+        # Find location of all changepoints
+       
+        changepoints = []
+        # the following range construction gives a list
+        # of all mid-eclipse phases within phi array
+        for n in range (int( phi.min() ), int( phi.max() )+1, 1):
+        	changepoints.append(n-dist_cp)
+        	changepoints.append(n+dist_cp)       
+        
+        # save these values for speed
+        if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
+            self._dist_cp = dist_cp
+            self._oldq = q.currVal
+            self._olddphi = dphi.currVal
+            self._oldrwd = rwd.currVal
+        
+        return changepoints
+     
     def createGP(self,phi):
         """Constructs a kernel, which is used to create Gaussian processes.
         
@@ -252,33 +310,14 @@ class GPLCModel(LCModel):
         ln_tau = self.getParam('tau_gp')
         amp = np.exp(ln_amp.currVal)
         tau = np.exp(ln_tau.currVal)
-        # Also get object for dphi, q and rwd as this is required to determine changepoints
-        dphi = self.getParam('dphi')
-        q = self.getParam('q')
-        rwd = self.getParam('rwd')
-        
-        # Calculate inclination
-        inc = roche.findi(q.currVal,dphi.currVal)
-        # Calculate wd contact phases 3 and 4
-        phi3, phi4 = roche.wdphases(q.currVal, inc, rwd.currVal, ntheta=10)
-        # Calculate length of wd egress
-        dpwd = phi4 - phi3
-        # Distance from changepoints to mideclipse
-        dist_cp = 1.25*(dphi.currVal/2.+dpwd/2.)
-        
+       
         # Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has much smaller amplitude than that of outside eclipse
         k_out = amp*GP.Matern32Kernel(tau)
-        k_in    = 0.01*amp*GP.Matern32Kernel(tau)
+        k_in    = 0.1*amp*GP.Matern32Kernel(tau)
         
-        # Find location of all changepoints
-        changepoints = []
-        # the following range construction gives a list
-        # of all mid-eclipse phases within phi array
-        for n in range (int( phi.min() ), int( phi.max() )+1, 1):
-            changepoints.append(n-dist_cp)
-            changepoints.append(n+dist_cp)  
-
+        changepoints = self.calcChangepoints(phi)
+        
         # Depending on number of changepoints, create kernel structure
         kernel_struc = [k_out]      
         for k in range (int( phi.min() ), int( phi.max() )+1, 1):
@@ -552,8 +591,8 @@ if __name__ == "__main__":
         ax1.plot(xf,model.cv.ywd)
         ax1.plot(xf,model.cv.yd)
         if useGP:
-			# Plot GP
-        	ax1.plot(xf,yf+fmu,color='r',linestyle='--',alpha=0.75)
+            # Plot GP
+            ax1.plot(xf,yf+fmu,color='r',linestyle='--',alpha=0.75)
         
         # Data
         ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.5)
@@ -562,7 +601,7 @@ if __name__ == "__main__":
         #ax2.set_xlim(ax1.get_xlim())
         #ax2.set_xlim(-0.1,0.15)
         if useGP:
-        	ax2.fill_between(xp,mu+2.0*std,mu-2.0*std,color='r',alpha=0.4)
+            ax2.fill_between(xp,mu+2.0*std,mu-2.0*std,color='r',alpha=0.4)
 
         # Labels
         if LHplot:

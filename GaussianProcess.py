@@ -249,6 +249,26 @@ class GaussianProcess(object):
         mu,cov = self.predict(y,xp)
         return np.random.multivariate_normal(mu,cov,size)
 
+    def sample(self,xp,size=100):
+        '''
+        Draw samples from the prior distribution
+        
+        :param xp: ``(ntest, )`` or ``(ntest, ndim)``
+            The coordinates where the prior distribution should be computed
+        :param size: (optional)
+            The number of samples to draw.
+
+        :returns samples: ``(size, ntest)``
+            A list of predictions at coordinates given by ``xp``.     
+        '''
+        assert self.kernel.computed
+        xp = np.atleast_2d(xp)
+        assert (xp.shape[0] == self.kernel.ndim) or (xp.shape[0] == 1), "1st dimension of xp array must either match dimensions of kernel or be 1"
+
+        cov = self.kernel.get_matrix(xp,self._x)
+        mu = np.zeros_like(xp.ravel())
+        return np.random.multivariate_normal(mu,cov,size)
+            
 
 if __name__ == "__main__":
     import george
