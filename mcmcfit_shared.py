@@ -166,7 +166,7 @@ class LCModel(Model):
                 retVal += scale.prior.ln_prob(scale.currVal)
             
         #BS az
-        slope = 40.0
+        slope = 80.0
         try:
             # Find position of bright spot where it hits disc
             azTemplate = 'az_{0}'
@@ -314,7 +314,7 @@ class GPLCModel(LCModel):
         # Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has much smaller amplitude than that of outside eclipse
         k_out = amp*GP.Matern32Kernel(tau)
-        k_in    = 0.1*amp*GP.Matern32Kernel(tau)
+        k_in    = 0.01*amp*GP.Matern32Kernel(tau)
         
         changepoints = self.calcChangepoints(phi)
         
@@ -531,9 +531,14 @@ if __name__ == "__main__":
         stop parallelism
         pool.close()
         '''
+        
+		#TODO: check if any values in the chain are INF, AND MASK OUT IF SO
+        # LNPROB is in sampler.lnprobability and is shape (nwalkers, nsteps)
+		# sampler.chain has shape (nwalkers, nsteps, npars)
+        
         # Create a chain (i.e. collect results from all walkers) using flatchain function
         # from mcmc_utils.py
-        chain = flatchain(sampler.chain,npars,thin=10)
+        chain = flatchain(sampler.chain,npars,thin=10)        
         
         # Print out individual parameters
         params = []

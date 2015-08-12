@@ -1,0 +1,182 @@
+# MCMC run parameters
+nburn    = 200		# number of steps to use in burn-in phase
+nprod    = 200		# number of steps to use in production phase
+nwalkers = 80  	# must be even multiple of npars (npars = 4 + 10*necl or 4+14*necl)
+nthread  = 6  	# number of CPU threads to use
+scatter  = 0.01 	# fractional scatter to add to starting ball of parameters
+fit      = 0		# actually fit (1), or just plot model as specified (0)
+
+# all model parameters have both a starting value and a prior
+# priors are specified by type, val1, val2
+# type can be one of 'gauss', 'uniform' or 'log_uniform'
+# if type = 'gauss', val1 and val2 represent mean and standard deviation of prior
+# if type = 'uniform' or 'log_uniform', val1 and val2 represent the limits of prior
+
+# eclipse independent parameters, is parameter to be fit (1) or not (0)?
+amp_gp = -6.0 uniform -10.0 -2.0 1	
+tau_gp = -11.0 uniform -15.0 -7.0 1 
+q     	= 0.128413 uniform 0.001 3.5 1  
+dphi  	= 0.061853 uniform 0.001 1 0.65 1  
+rwd   	= 0.023093 uniform 0.0001 0.1 1 
+
+# remaining parameters vary from eclipse to eclipse
+neclipses = 8
+
+# what phases to plot/fit
+phi_start = -0.9
+phi_end = 0.18
+
+# complex bright spot, yes (1) or no (0)?
+complex = 1
+
+# fit using Gaussian processes, yes (1) or no (0)?
+useGP = 1
+
+# the following lines should have an entry for each individual eclipse
+file_0  = data/asassn14ag_1.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+out_0   = ind_fit_1.dat 			# file to write containing data and best fit
+wdFlux_0 = 0.556368 	uniform	0.001 2 1 
+dFlux_0 = 0.768503  uniform 0.001 2 1 
+sFlux_0 = 0.298697 uniform 0.001 2	1 
+rsFlux_0 = 0.013016 uniform 0.0 0.5 1  
+ulimb_0 = 0.390	gauss 0.390 0.005 0 
+rdisc_0 = 0.453874 uniform	0.25 0.64 1  
+scale_0 = 0.050035 log_uniform	0.008 0.076 1 
+az_0 = 109.401505 uniform 70 177 1  
+fis_0 = 0.447257 uniform 0.001 0.9	1 
+dexp_0 = 1.021732 uniform 0.0001 2.5 1 
+phi0_0 = -0.000509	uniform -0.1 0.1 1 
+exp1_0 = 1.082645 uniform 0.01 4.0 1 
+exp2_0 = 0.996618 uniform 0.9 3.0 1 
+tilt_0 = 104.108982 uniform 0.0 165.0 1 
+yaw_0 = 20.270712	uniform	-90 90.0 1  
+
+file_1  = data/asassn14ag_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+out_1   = ind_fit_2.dat 			# file to write containing data and best fit
+wdFlux_1 = 0.371737	uniform	0.001 2 1 
+dFlux_1 = 0.837746 uniform 0.001 2 1 
+sFlux_1 = 0.408259 uniform 0.001 2	1 
+rsFlux_1 = 0.014247 uniform 0.0 0.5 1  
+ulimb_1 = 0.340 gauss 0.340 0.005 0 
+rdisc_1 = 0.507980 uniform	0.25 0.64 1  
+scale_1 = 0.054830	log_uniform	0.008 0.076 1 
+az_1 = 114.628256 uniform 70 177 1  
+fis_1 = 0.316764 uniform 0.001 0.9	1 
+dexp_1 = 0.536540 uniform 0.0001 2.5 1 
+phi0_1 = 0.000428  uniform -0.1 0.1 1 
+exp1_1 = 1.282210 uniform 0.01 4.0 1 
+exp2_1 = 1.181501 uniform 0.9 3.0 1 
+tilt_1 = 58.239516 uniform 0.0 165.0 1 
+yaw_1 = 13.214654 uniform	-90 90.0 1  
+
+file_2  = data/asassn14ag_3.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+out_2  = ind_fit_3.dat 			# file to write containing data and best fit
+wdFlux_2 = 0.288850	uniform	0.001 2 1 
+dFlux_2 = 0.703312 uniform 0.001 2 1 
+sFlux_2 = 0.422326 uniform 0.001 2	1 
+rsFlux_2 = 0.009564 uniform 0.0 0.5 1  
+ulimb_2 = 0.340	gauss 0.340 0.005 0 
+rdisc_2 = 0.529645	uniform	0.25 0.64 1  
+scale_2 = 0.048907	log_uniform	0.008 0.076 1 
+az_2 = 121.824156 uniform 70 177 1  
+fis_2 = 0.470702 uniform 0.001 0.9	1 
+dexp_2 = 0.850752 uniform 0.0001 2.5 1 
+phi0_2 = -0.000175 uniform -0.1 0.1 1 
+exp1_2 = 1.034043 uniform 0.01 4.0 1 
+exp2_2 = 1.383452  uniform 0.9 3.0 1 
+tilt_2 = 118.172830 uniform 0.0 165.0 1 
+yaw_2 = -3.003007	uniform	-90 90.0 1  
+
+file_3  = data/asassn14ag_4.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+out_3  = ind_fit_4.dat 				# file to write containing data and best fit
+wdFlux_3 = 0.404116	uniform	0.001 2 1 
+dFlux_3 = 0.431730  uniform 0.001 2 1
+sFlux_3 = 0.475553 uniform 0.001 2	1
+rsFlux_3 = 0.002808 uniform 0.0 0.5 1  
+ulimb_3 = 0.390	gauss 0.390 0.005 0 
+rdisc_3 = 0.483978	uniform	0.25 0.64 1  
+scale_3 = 0.052230	log_uniform	0.008 0.076 1 
+az_3 = 109.157773  uniform 70 177 1  
+fis_3 = 0.298254  uniform 0.001 0.9	1 
+dexp_3 = 1.856607 uniform 0.0001 2.5 1 
+phi0_3 = -0.000122	uniform -0.1 0.1 1 
+exp1_3 = 0.351497 uniform 0.01 4.0 1 
+exp2_3 = 0.998196 uniform 0.9 3.0 1 
+tilt_3 = 106.215490  uniform 0.0 165.0 1 
+yaw_3 = 13.332317 uniform	-90 90.0 1  
+
+file_4  = data/asassn14ag_5.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+out_4   = ind_fit_5.dat 			# file to write containing data and best fit
+wdFlux_4 = 0.341465	uniform	0.001 2 1 
+dFlux_4 = 0.437742 uniform 0.001 2 1
+sFlux_4 = 0.431234 uniform 0.001 2	1 
+rsFlux_4 = 0.006300 uniform 0.0 0.5 1  
+ulimb_4 = 0.340 	gauss 0.340 0.005 0 
+rdisc_4 = 0.483859 uniform	0.25 0.64 1  
+scale_4 = 0.033302 	log_uniform	0.008 0.076 1 
+az_4 = 114.094328 uniform 70 177 1  
+fis_4 = 0.273274 uniform 0.001 0.9	1 
+dexp_4 = 0.727902 uniform 0.0001 2.5 1 
+phi0_4 = +0.0002635	uniform -0.1 0.1 1 
+exp1_4 = 1.866455 uniform 0.01 4.0 1 
+exp2_4 = 1.2200958 uniform 0.9 3.0 1 
+tilt_4 = 133.089743 uniform 0.0 165.0 1 
+yaw_4 = 12.328609	uniform	-90 90.0 1  
+
+file_5  = data/asassn14ag_6.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+out_5 = ind_fit_6.dat 			# file to write containing data and best fit
+wdFlux_5 = 0.427531 	uniform	0.001 2 1 
+dFlux_5 = 0.239401  uniform 0.001 2 1 
+sFlux_5 = 0.455566  uniform 0.001 2	1
+rsFlux_5 = 0.035798 uniform 0.0 0.5 1  
+ulimb_5 = 0.390	gauss 0.390 0.005 0 
+rdisc_5 = 0.441144	uniform	0.25 0.64 1  
+scale_5 = 0.022707	log_uniform	0.008 0.075 1 
+az_5 = 93.545927  uniform 70 177 1  
+fis_5 = 0.354378 uniform 0.001 0.9	1 
+dexp_5 = 1.489491 uniform 0.0001 2.5 1 
+phi0_5 = -0.000344	uniform -0.1 0.1 1 
+exp1_5 = 1.514560  uniform 0.01 4.0 1 
+exp2_5 = 1.101207  uniform 0.9 3.0 1 
+tilt_5 = 94.021121 uniform 0.0 165.0 1 
+yaw_5 = 52.214090 uniform	-90 90.0 1
+
+file_6  = data/asassn14ag_7.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+out_6   = ind_fit_7.dat 			# file to write containing data and best fit
+wdFlux_6 = 0.421948	uniform	0.001 2 1 
+dFlux_6 = 0.502506 uniform 0.001 2 1
+sFlux_6 = 0.556684 uniform 0.001 2	1
+rsFlux_6 = 0.001115 uniform 0.0 0.5 1  
+ulimb_6 = 0.345	gauss 0.345 0.005 0 
+rdisc_6 = 0.453653	uniform	0.25 0.64 1  
+scale_6 = 0.026523	log_uniform	0.008 0.076 1 
+az_6 = 125.434142 uniform 70 177 1  
+fis_6 = 0.156513 uniform 0.001 0.9	1 
+dexp_6 = 1.133396 uniform 0.0001 2.5 1 
+phi0_6 = -0.000741	uniform -0.1 0.1 1 
+exp1_6 = 1.954437 uniform 0.01 4.0 1 
+exp2_6 = 0.987284 uniform 0.9 3.0 1 
+tilt_6 = 124.484465 uniform 0.0 165.0 1
+yaw_6 = 16.344644	uniform	-90 90.0 1
+
+file_7 = data/asassn14ag_8.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+out_7   = ind_fit_8.dat 			# file to write containing data and best fit
+wdFlux_7 = 0.435618	uniform	0.001 2 1 
+dFlux_7 = 0.443129 uniform 0.001 2 1 
+sFlux_7 = 0.484347 uniform 0.001 2	1 
+rsFlux_7 = 0.000907 uniform 0.0 0.5 1  
+ulimb_7 = 0.390	gauss 0.390 0.005 0 
+rdisc_7 = 0.430329	uniform	0.25 0.64 1  
+scale_7 = 0.026615	log_uniform	0.008 0.076 1 
+az_7 = 128.648569 uniform 70 177 1  
+fis_7 = 0.153832 uniform 0.001 0.9	1 
+dexp_7 = 1.388146 uniform 0.0001 2.5 1 
+phi0_7 = -0.000412	uniform -0.1 0.1 1 
+exp1_7 = 1.193390 uniform 0.01 4.0 1 
+exp2_7 = 0.941592 uniform 0.9 3.0 1 
+tilt_7 = 33.769170 uniform 0.0 165.0 1 
+yaw_7 = 9.656948	uniform	-90 90.0 1
+
+
+
+

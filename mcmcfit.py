@@ -47,12 +47,13 @@ def ln_prior_gp(params):
     
     lnp = 0.0
     
-    prior = Prior('uniform',-15,10)
+    prior = Prior('uniform',-3.005,-2.995)
     lnp += prior.ln_prob(lna)
-    #flickering timescale 30s to 2 mins (for a typical orbital period of 100 mins)
     
+    #flickering timescale 30s to 2 mins (for a typical orbital period of 100 mins)
     #prior = Prior('uniform',-5.30,-3.91)
-    prior = Prior('uniform',-7.97,-6.54) 
+    
+    prior = Prior('uniform',-5.565, -5.555) 
     lnp += prior.ln_prob(lntau)
     
     return lnp + ln_prior_base(params[2:])
@@ -62,19 +63,19 @@ def ln_prior_base(pars):
     lnp = 0.0
 
     #Wd flux
-    prior = Prior('uniform',0.001,0.8)
+    prior = Prior('uniform',0.001,2)
     lnp += prior.ln_prob(pars[0])
 
     #Disc flux
-    prior = Prior('uniform',0.001,0.8)
+    prior = Prior('uniform',0.001,2)
     lnp += prior.ln_prob(pars[1])
 
     #BS flux
-    prior = Prior('uniform',0.001,0.8)
+    prior = Prior('uniform',0.001,2)
     lnp += prior.ln_prob(pars[2])
 
     #Donor flux
-    prior = Prior('uniform',0.0,0.8)
+    prior = Prior('uniform',0.0,2)
     lnp += prior.ln_prob(pars[3])
 
     #Mass ratio
@@ -101,7 +102,7 @@ def ln_prior_base(pars):
         lnp += -np.inf
     
     #Limb darkening
-    prior = Prior('gauss',0.35,0.005)
+    prior = Prior('gauss',0.39,0.005)
     lnp += prior.ln_prob(pars[7])
 
     #Wd radius (XL1)
@@ -224,7 +225,7 @@ def lnprob_gp(params, phi, width, y, e, cv):
         return -np.inf
     return lp + lnlike_gp(params, phi, width, y, e, cv)
 
-def fit_gp(initialGuess, phi, width, y, e, cv, mcmcPars=(40,500,500,500,6)):
+def fit_gp(initialGuess, phi, width, y, e, cv, mcmcPars=(80,5000,5000,500,6)):
     nwalkers, nBurn1, nBurn2, nProd, nThreads = mcmcPars
     ndim_gp = len(initialGuess)
     pos = emcee.utils.sample_ball(initialGuess,0.05*initialGuess,size=nwalkers)
@@ -317,10 +318,10 @@ if __name__ == "__main__":
     parser.add_argument('file',action='store',help='input file (x,y,e)')
     parser.add_argument('parfile',action='store',help='starting parameters')
     parser.add_argument('-f','--fit',action='store_true',help='actually fit, otherwise just plot')
-    parser.add_argument('-nw','--nwalkers',action='store',help='number of walkers', type=int, default=40)
+    parser.add_argument('-nw','--nwalkers',action='store',help='number of walkers', type=int, default=80)
     parser.add_argument('-nt','--nthreads',action='store',help='number of threads', type=int, default=6)
-    parser.add_argument('-nb','--nburn',action='store',help='number of burn steps', type=int, default=500)
-    parser.add_argument('-np','--nprod',action='store',help='number of prod steps', type=int, default=500)
+    parser.add_argument('-nb','--nburn',action='store',help='number of burn steps', type=int, default=5000)
+    parser.add_argument('-np','--nprod',action='store',help='number of prod steps', type=int, default=1000)
     args = parser.parse_args()
     file = args.file
     toFit = args.fit
