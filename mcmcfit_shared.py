@@ -314,7 +314,7 @@ class GPLCModel(LCModel):
         # Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has much smaller amplitude than that of outside eclipse
         k_out = amp*GP.Matern32Kernel(tau)
-        k_in    = 0.01*amp*GP.Matern32Kernel(tau)
+        k_in    = 0.1*amp*GP.Matern32Kernel(tau)
         
         changepoints = self.calcChangepoints(phi)
         
@@ -526,7 +526,7 @@ if __name__ == "__main__":
         sampler.reset()
         print 'starting main mcmc chain'
         # Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain2.txt")  
+        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")  
         '''
         stop parallelism
         pool.close()
