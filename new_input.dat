@@ -2,10 +2,10 @@
 
 nburn    = 1000	#number of steps to use in burn-in phase
 nprod    = 500		# number of steps to use in production phase
-nwalkers = 80  	# must be even multiple of npars (npars = 4 + 10*necl or 4+14*necl)
+nwalkers = 80  	# must be even multiple of npars (npars = 6 + 11*necl or 6 + 15*necl)
 nthread  = 6  	# number of CPU threads to use
 scatter  = 0.01 	# fractional scatter to add to starting ball of parameters
-fit      = 0		# actually fit (1), or just plot model as specified (0)
+fit      = 1		# actually fit (1), or just plot model as specified (0)
 
 # all model parameters have both a starting value and a prior
 # priors are specified by type, val1, val2
@@ -24,7 +24,9 @@ fit      = 0		# actually fit (1), or just plot model as specified (0)
 #amp_gp = -3.000 uniform -3.005 -2.995 1	# equivalent to 0.05 amp
 #tau_gp = -5.560 uniform -5.565 -5.555 1 # equivalent to 20secs
 amp_gp = -6.0 uniform -10.0 -2.0 1	
-tau_gp = -11.0 uniform -15.0 -7.0 1  
+tau_gp = -11.0 uniform -15.0 -7.0 1
+
+amp_ratio = 0.1 uniform 0 1 1 
 
 #q     	= 0.151812 uniform 0.001 3.5 1  
 #dphi  	= 0.060806 uniform 0.001 1 0.65 1  
@@ -44,11 +46,11 @@ phi_end = 0.18
 complex = 1
 
 # fit using Gaussian processes, yes (1) or no (0)?
-useGP = 0
+useGP = 1
 
 # the following lines should have an entry for each individual eclipse
 #file_0  = data/asassn14ag_1.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0  = ind_fit_1.dat 				# file to write containing data and best fit
+#plot_0  = eclipse1.pdf				
 #wdFlux_0 = 0.302870	uniform	0.001 2 1 
 #dFlux_0 = 0.153438  uniform 0.001 2 1
 #sFlux_0 = 0.356324 uniform 0.001 2	1
@@ -66,7 +68,7 @@ useGP = 0
 #yaw_0 = 4.384893 uniform	-90 90.0 1  
 
 #file_0  = data/asassn14ag_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0  = ind_fit_2.dat 				# file to write containing data and best fit
+#plot_0  = eclipse2.pdf				
 #wdFlux_0 = 0.238002	uniform	0.001 2 1 
 #dFlux_0 = 0.251832  uniform 0.001 2 1
 #sFlux_0 = 0.334566 uniform 0.001 2	1
@@ -83,26 +85,26 @@ useGP = 0
 #tilt_0 = 82.816510  uniform 0.0 180.0 1 
 #yaw_0 = 16.649513 uniform	-90 90.0 1
 
-#file_0  = data/asassn14ag_3_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0   = ind_fit_3.dat 			# file to write containing data and best fit
-#wdFlux_0 = 0.439726 	uniform	0.001 2 1 
-#dFlux_0 = 0.782996  uniform 0.001 2 1 
-#sFlux_0 = 0.389480 uniform 0.001 2	1 
-#rsFlux_0 = 0.024615 uniform 0.0 0.5 1  
-#ulimb_0 = 0.390	gauss 0.390 0.005 0 
-#rdisc_0 = 0.488317 uniform	0.25 0.64 1  
-#scale_0 = 0.053612 log_uniform	0.008 0.076 1 
-#az_0 = 134.874622 uniform 70 177 1  
-#fis_0 = 0.587412 uniform 0.001 0.9	1 
-#dexp_0 = 1.472375 uniform 0.0001 2.5 1 
-#phi0_0 = -0.001043	uniform -0.1 0.1 1 
-#exp1_0 = 3.185774 uniform 0.01 4.0 1 
-#exp2_0 = 0.973048 uniform 0.01 3.0 1 
-#tilt_0 = 94.324821 uniform 0.0 180.0 1 
-#yaw_0 = -15.035055	uniform	-90 90.0 1  
+file_0  = data/asassn14ag_3_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+plot_0  = eclipse3.pdf	
+wdFlux_0 = 0.439726 	uniform	0.001 2 1 
+dFlux_0 = 0.782996  uniform 0.001 2 1 
+sFlux_0 = 0.389480 uniform 0.001 2	1 
+rsFlux_0 = 0.024615 uniform 0.0 0.5 1  
+ulimb_0 = 0.390	gauss 0.390 0.005 0 
+rdisc_0 = 0.488317 uniform	0.25 0.64 1  
+scale_0 = 0.053612 log_uniform	0.008 0.076 1 
+az_0 = 134.874622 uniform 70 177 1  
+fis_0 = 0.587412 uniform 0.001 0.9	1 
+dexp_0 = 1.472375 uniform 0.0001 2.5 1 
+phi0_0 = -0.001043	uniform -0.1 0.1 1 
+exp1_0 = 3.185774 uniform 0.01 4.0 1 
+exp2_0 = 0.973048 uniform 0.01 3.0 1 
+tilt_0 = 94.324821 uniform 0.0 180.0 1 
+yaw_0 = -15.035055	uniform	-90 90.0 1  
 
 #file_0  = data/asassn14ag_4_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0   = ind_fit_4.dat 			# file to write containing data and best fit
+#plot_0  = eclipse4.pdf	
 #wdFlux_0 = 0.513470 uniform	0.001 2 1 
 #dFlux_0 = 0.768079 uniform 0.001 2 1 
 #sFlux_0 = 0.354068 uniform 0.001 2	1 
@@ -120,13 +122,13 @@ useGP = 0
 #yaw_0 = 0.58390 uniform	-90 90.0 1  
 
 #file_0  = data/asassn14ag_5_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0   = ind_fit_5.dat 			# file to write containing data and best fit
+#plot_0  = eclipse5.pdf	
 #wdFlux_0 = 0.245677	uniform	0.001 2 1 
 #dFlux_0 = 0.710834 uniform 0.001 2 1 
 #sFlux_0 = 0.381565 uniform 0.001 2	1 
 #rsFlux_0 = 0.114634 uniform 0.0 0.5 1  
 #ulimb_0 = 0.340	gauss 0.340 0.005 0 
-#rdisc_0 = 0.493612	uniform	0.25 0.64 1  
+#rdisc_0 = 0.493612	uniform	0.25 0.64 1  #
 #scale_0 = 0.017508	log_uniform	0.008 0.076 1 
 #az_0 = 121.651734 uniform 70 177 1  
 #fis_0 = 0.099151 uniform 0.001 0.9	1 
@@ -138,7 +140,7 @@ useGP = 0
 #yaw_0 = 5.458249	uniform	-90 90.0 1  
 
 #file_0  = data/asassn14ag_6_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0  = ind_fit_6.dat 				# file to write containing data and best fit
+#plot_0  = eclipse6.pdf	
 #wdFlux_0 = 0.494120	uniform	0.001 2 1 
 #dFlux_0 = 0.283534  uniform 0.001 2 1
 #sFlux_0 = 0.516429 uniform 0.001 2	1
@@ -156,7 +158,7 @@ useGP = 0
 #yaw_0 = 12.619492 uniform	-90 90.0 1  
 
 #file_0  = data/asassn14ag_7_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0   = ind_fit_7.dat 			# file to write containing data and best fit
+#plot_0  = eclipse7.pdf	
 #wdFlux_0 = 0.326394	uniform	0.001 2 1 
 #dFlux_0 = 0.402309 uniform 0.001 2 1
 #sFlux_0 = 0.412009 uniform 0.001 2	1 
@@ -174,7 +176,7 @@ useGP = 0
 #yaw_0 = -4.955752	uniform	-90 90.0 1  
 
 #file_0  = data/asassn14ag_8_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0 = ind_fit_8.dat 			# file to write containing data and best fit
+#plot_0  = eclipse8.pdf	
 #wdFlux_0 = 0.394218	uniform	0.001 2 1 
 #dFlux_0 = 0.241545  uniform 0.001 2 1 
 #sFlux_0 = 0.467082  uniform 0.001 2	1
@@ -192,7 +194,7 @@ useGP = 0
 #yaw_0 = 34.284371 uniform	-90 90.0 1
 
 #file_0  = data/asassn14ag_9_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0   = ind_fit_9.dat 			# file to write containing data and best fit
+#plot_0  = eclipse9.pdf	
 #wdFlux_0 = 0.431637	uniform	0.001 2 1 
 #dFlux_0 = 0.476819 uniform 0.001 2 1
 #sFlux_0 = 0.532718 uniform 0.001 2	1
@@ -210,7 +212,7 @@ useGP = 0
 #yaw_0 = 14.094570	uniform	-90 90.0 1
 
 #file_0 = data/asassn14ag_10_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
-#out_0   = ind_fit_10.dat 			# file to write containing data and best fit
+#plot_0  = eclipse10.pdf	
 #wdFlux_0 = 0.454683	uniform	0.001 2 1 
 #dFlux_0 = 0.290229 uniform 0.001 2 1 
 #sFlux_0 = 0.677452 uniform 0.001 2	1 

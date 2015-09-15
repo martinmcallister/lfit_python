@@ -229,18 +229,19 @@ class LCModel(Model):
 class GPLCModel(LCModel):
     """CV lightcurve model for multiple eclipses, with added Gaussian process fitting"""
     
-    def __init__(self,parList,complex,amp_gp,tau_gp,nel_disc=1000,nel_donor=400):
+    def __init__(self,parList,complex,amp_gp,tau_gp,amp_ratio,nel_disc=1000,nel_donor=400):
         """Initialise model.
         
-        Parameter list should be a 16 element (non-complex BS) or 20 element (complex BS)
+        Parameter list should be a 17 element (non-complex BS) or 21 element (complex BS)
         dictionary of Param objects. These are:
-        amp_gp, tau_gp, wdFlux, dFlux, sFlux, rsFlux, q, dphi, rdisc, ulimb, rwd, scale, az, fis, dexp, phi0
+        amp_gp, tau_gp, amp_ratio, wdFlux, dFlux, sFlux, rsFlux, q, dphi, rdisc, ulimb, rwd, scale, az, fis, dexp, phi0
         And additional params: exp1, exp2, tilt, yaw"""
         
         super(GPLCModel,self).__init__(parList,complex,nel_disc,nel_donor)
         # Make sure GP parameters are variable when using this model
         self.plist.append(amp_gp)
         self.plist.append(tau_gp)
+        self.plist.append(amp_ratio)
         self._dist_cp = 10.0
         self._oldq = 10.0
         self._olddphi = 10.0
@@ -301,20 +302,23 @@ class GPLCModel(LCModel):
     def createGP(self,phi):
         """Constructs a kernel, which is used to create Gaussian processes.
         
-        Uses values for the two hyperparameters (amp,tau) and dphi, this function: creates
-        kernels for both inside and out of eclipse, works out the location of any changepoints
-        present, constructs a single (mixed) kernel and uses this kernel to create GPs"""
+        Using values for the two hyperparameters (amp,tau), amp_ratio and dphi, this function:
+        creates kernels for both inside and out of eclipse, works out the location of any 
+        changepoints present, constructs a single (mixed) kernel and uses this kernel to create GPs"""
     
         # Get objects for amp_gp, tau_gp and find the exponential of their current values
         ln_amp = self.getParam('amp_gp')
         ln_tau = self.getParam('tau_gp')
+        amp_ratio = self.getParam('amp_ratio')
+        amp_ratio = amp_ratio.currVal
         amp = np.exp(ln_amp.currVal)
         tau = np.exp(ln_tau.currVal)
        
         # Calculate kernels for both out of and in eclipse WD eclipse
-        # Kernel inside of WD has much smaller amplitude than that of outside eclipse
+        # Kernel inside of WD has smaller amplitude than that of outside eclipse,
+        # how much smaller is determined by the gp amplitude ratio parameter
         k_out = amp*GP.Matern32Kernel(tau)
-        k_in    = 0.1*amp*GP.Matern32Kernel(tau)
+        k_in    = amp_ratio*amp*GP.Matern32Kernel(tau)
         
         changepoints = self.calcChangepoints(phi)
         
@@ -393,12 +397,15 @@ if __name__ == "__main__":
     amp_gp = Param.fromString('amp_gp', input_dict['amp_gp'])
     tau_gp = Param.fromString('tau_gp', input_dict['tau_gp'])
     
-    # Read in file names containing eclipse data, as well as output file names
+    # Read in GP amplitude ratio using fromString function from mcmc_utils.py
+    amp_ratio = Param.fromString('amp_ratio', input_dict['amp_ratio'])
+    
+    # Read in file names containing eclipse data, as well as output plot names
     files = []
-    output_files = []
+    output_plots = []
     for ecl in range(0,neclipses):
         files.append(input_dict['file_{0}'.format(ecl)])
-        output_files.append(input_dict['out_{0}'.format(ecl)])
+        output_plots.append(input_dict['plot_{0}'.format(ecl)])
 
 
     # Output file code - needs completing
@@ -419,7 +426,7 @@ if __name__ == "__main__":
     
     # If fitting using GPs use GPLCModel, else use LCModel
     if useGP:
-        model = GPLCModel(parList,complex,amp_gp,tau_gp)
+        model = GPLCModel(parList,complex,amp_gp,tau_gp,amp_ratio)
     else:
         model = LCModel(parList,complex)
         
@@ -561,7 +568,7 @@ if __name__ == "__main__":
     
     # Plot model & data
     # Use of gridspec to help with plotting
-    gs = gridspec.GridSpec(2,neclipses,height_ratios=[2,1])
+    gs = gridspec.GridSpec(2,1,height_ratios=[2,1])
     gs.update(hspace=0.0)
     seaborn.set()
 
@@ -586,8 +593,8 @@ if __name__ == "__main__":
             mu = np.mean(samples,axis=0)
             std = np.std(samples,axis=0)
             fmu, _ = gp.predict(res, xf)
-            
-        ax1 = plt.subplot(gs[0,iecl])
+        
+        ax1 = plt.subplot(gs[0,0])
         
         # CV model
         ax1.plot(xf,yf)
@@ -601,7 +608,7 @@ if __name__ == "__main__":
         
         # Data
         ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.5)
-        ax2 = plt.subplot(gs[1,iecl],sharex=ax1)
+        ax2 = plt.subplot(gs[1,0],sharex=ax1)
         ax2.errorbar(xp,yp-yp_fit,yerr=ep,color='k',fmt='.',capsize=0,alpha=0.5)
         #ax2.set_xlim(ax1.get_xlim())
         #ax2.set_xlim(-0.1,0.15)
@@ -609,17 +616,15 @@ if __name__ == "__main__":
             ax2.fill_between(xp,mu+2.0*std,mu-2.0*std,color='r',alpha=0.4)
 
         # Labels
-        if LHplot:
-               ax1.set_ylabel('Flux (mJy)')
-               ax2.set_ylabel('Residuals (mJy)')
-               LHplot = False
+        ax1.set_ylabel('Flux (mJy)')
+        ax2.set_ylabel('Residuals (mJy)')
         ax2.set_xlabel('Orbital Phase')
         ax2.yaxis.set_major_locator(MaxNLocator(4,prune='both'))
         
-    for ax in plt.gcf().get_axes()[::2]:
-        ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
+    	for ax in plt.gcf().get_axes()[::2]:
+        	ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
         
-    # Save plot image 
-    plt.savefig('bestFit.pdf')
-    plt.show()
+    	# Save plot images
+    	plt.savefig(output_plots[iecl])
+    	plt.show()
      

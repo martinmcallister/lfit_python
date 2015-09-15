@@ -1,0 +1,45 @@
+# Name of chain file
+chain = test_chain.txt
+
+# Number of eclipses
+neclipses = 10
+
+# what phases to plot
+phi_start = -0.9
+phi_end = 0.18
+
+# Complex bright spot used, yes (1) or no (0)?
+complex = 1
+
+# Gaussian processes used, yes (1) or no (0)?
+useGP = 1
+
+file_0  = data/asassn14ag_1.txt  		# file containing eclipse data, 3 columns - MJD, flux, err
+plot_0  = eclipse1.pdf
+
+file_1  = data/asassn14ag_2.txt
+plot_1  = eclipse2.pdf
+
+file_2  = data/asassn14ag_3_2.txt
+plot_2  = eclipse3.pdf
+
+file_3  = data/asassn14ag_4_2.txt
+plot_3  = eclipse4.pdf
+
+file_4  = data/asassn14ag_5_2.txt
+plot_4  = eclipse5.pdf
+
+file_5  = data/asassn14ag_6_2.txt
+plot_5  = eclipse6.pdf
+
+file_6  = data/asassn14ag_7_2.txt
+plot_6  = eclipse7.pdf
+
+file_7  = data/asassn14ag_8_2.txt
+plot_7  = eclipse8.pdf
+
+file_8  = data/asassn14ag_9_2.txt
+plot_8  = eclipse9.pdf
+
+file_9  = data/asassn14ag_10_2.txt
+plot_9  = eclipse10.pdf
