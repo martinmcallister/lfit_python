@@ -229,19 +229,19 @@ class LCModel(Model):
 class GPLCModel(LCModel):
     """CV lightcurve model for multiple eclipses, with added Gaussian process fitting"""
     
-    def __init__(self,parList,complex,amp_gp,tau_gp,amp_ratio,nel_disc=1000,nel_donor=400):
+    def __init__(self,parList,complex,ampin_gp,ampout_gp,tau_gp,nel_disc=1000,nel_donor=400):
         """Initialise model.
         
         Parameter list should be a 17 element (non-complex BS) or 21 element (complex BS)
         dictionary of Param objects. These are:
-        amp_gp, tau_gp, amp_ratio, wdFlux, dFlux, sFlux, rsFlux, q, dphi, rdisc, ulimb, rwd, scale, az, fis, dexp, phi0
+        ampin_gp, ampout_gp, tau_gp, wdFlux, dFlux, sFlux, rsFlux, q, dphi, rdisc, ulimb, rwd, scale, az, fis, dexp, phi0
         And additional params: exp1, exp2, tilt, yaw"""
         
         super(GPLCModel,self).__init__(parList,complex,nel_disc,nel_donor)
         # Make sure GP parameters are variable when using this model
-        self.plist.append(amp_gp)
+        self.plist.append(ampin_gp)
+        self.plist.append(ampout_gp)
         self.plist.append(tau_gp)
-        self.plist.append(amp_ratio)
         self._dist_cp = 10.0
         self._oldq = 10.0
         self._olddphi = 10.0
@@ -306,19 +306,18 @@ class GPLCModel(LCModel):
         creates kernels for both inside and out of eclipse, works out the location of any 
         changepoints present, constructs a single (mixed) kernel and uses this kernel to create GPs"""
     
-        # Get objects for amp_gp, tau_gp and find the exponential of their current values
-        ln_amp = self.getParam('amp_gp')
+        # Get objects for ampin_gp, ampout_gp, tau_gp and find the exponential of their current values
+        ln_ampin = self.getParam('ampin_gp')
+        ln_ampout = self.getParam('ampout_gp')
         ln_tau = self.getParam('tau_gp')
-        amp_ratio = self.getParam('amp_ratio')
-        amp_ratio = amp_ratio.currVal
-        amp = np.exp(ln_amp.currVal)
+        ampin = np.exp(ln_ampin.currVal)
+        ampout = np.exp(ln_ampout.currVal)
         tau = np.exp(ln_tau.currVal)
        
         # Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has smaller amplitude than that of outside eclipse,
-        # how much smaller is determined by the gp amplitude ratio parameter
-        k_out = amp*GP.Matern32Kernel(tau)
-        k_in    = amp_ratio*amp*GP.Matern32Kernel(tau)
+        k_in  = ampin*GP.Matern32Kernel(tau)
+        k_out = ampout*GP.Matern32Kernel(tau)
         
         changepoints = self.calcChangepoints(phi)
         
@@ -394,11 +393,9 @@ if __name__ == "__main__":
     useGP     = bool(int(input_dict['useGP']))
     
     # Read in GP params using fromString function from mcmc_utils.py
-    amp_gp = Param.fromString('amp_gp', input_dict['amp_gp'])
+    ampin_gp = Param.fromString('ampin_gp', input_dict['ampin_gp'])
+    ampout_gp = Param.fromString('ampout_gp', input_dict['ampout_gp'])
     tau_gp = Param.fromString('tau_gp', input_dict['tau_gp'])
-    
-    # Read in GP amplitude ratio using fromString function from mcmc_utils.py
-    amp_ratio = Param.fromString('amp_ratio', input_dict['amp_ratio'])
     
     # Read in file names containing eclipse data, as well as output plot names
     files = []
@@ -426,7 +423,7 @@ if __name__ == "__main__":
     
     # If fitting using GPs use GPLCModel, else use LCModel
     if useGP:
-        model = GPLCModel(parList,complex,amp_gp,tau_gp,amp_ratio)
+        model = GPLCModel(parList,complex,ampin_gp,ampout_gp,tau_gp)
     else:
         model = LCModel(parList,complex)
         

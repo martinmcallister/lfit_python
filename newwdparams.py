@@ -360,11 +360,12 @@ if __name__ == "__main__":
     iband = np.array(iband)
     zband = np.array(zband)
     kg5band = np.array(kg5band)
-           
+    
     # Need to pick random sample from arrays in each band and calculate errors
     if len(uband) > 0:
         ufluxes = np.random.choice(uband,size=100)
         ufluxes_err = np.sqrt((np.std(ufluxes))**2 + (np.mean(ufluxes)*syserr)**2)
+        
     if len(gband) > 0:
         gfluxes = np.random.choice(gband,size=100)
         gfluxes_err = np.sqrt((np.std(gfluxes))**2 + (np.mean(gfluxes)*syserr)**2)
@@ -380,6 +381,8 @@ if __name__ == "__main__":
     if len(kg5band) > 0:
         kg5fluxes = np.random.choice(kg5band,size=100)
         kg5fluxes_err = np.sqrt((np.std(kg5fluxes))**2 + (np.mean(kg5fluxes)*syserr)**2)
+        
+        
     
     myModel = wdModel(teff,logg,dist,ebv)
     
