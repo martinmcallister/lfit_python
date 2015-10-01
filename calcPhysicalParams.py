@@ -220,19 +220,14 @@ if __name__ == "__main__":
     chain = readchain(file)
     nwalkers, nsteps, npars = chain.shape
     fchain = flatchain(chain,npars,thin=thin)
-    
-    gp_offset = 0
-    #if fchain.shape[1] > 19:
-    # we have a namelist with GP hyperparameters
-    #gp_offset = 2
 
     # this is the order of the params in the chain
     nameList = ['fwd','fdisc','fbs','fd','q','dphi','rdisc','ulimb','rwd','scale', \
             'az','frac','rexp','off','exp1','exp2','tilt','yaw','amp_gp','tau_gp','lnprob']
     # we need q, dphi, rw from the chain
-    qVals = fchain[:,4+gp_offset]
-    dphiVals = fchain[:,5+gp_offset]
-    rwVals  = fchain[:,8+gp_offset]
+    qVals = fchain[:,4]
+    dphiVals = fchain[:,5]
+    rwVals  = fchain[:,8]
     chainLength = len(qVals)
 
     # white dwarf temp

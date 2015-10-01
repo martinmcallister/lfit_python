@@ -271,10 +271,14 @@ if __name__ == "__main__":
     # add sys errors to ume
     ume, gme, rme = e
     
-    teff = parseParam( input_dict['teff'] )
-    logg = parseParam( input_dict['logg'] )
-    dist = parseParam( input_dict['dist'] )
-    ebv = parseParam( input_dict['ebv'] )
+    teff = Param.fromString('teff', input_dict['teff'] )
+    logg = Param.fromString('logg', input_dict['logg'] )
+    dist = Param.fromString('dist', input_dict['dist'] )
+    ebv = Param.fromString('ebv', input_dict['ebv'] )
+    #teff = parseParam( input_dict['teff'] )
+    #logg = parseParam( input_dict['logg'] )
+    #dist = parseParam( input_dict['dist'] )
+    #ebv = parseParam( input_dict['ebv'] )
 
     myModel = wdModel(teff,logg,dist,ebv)
     

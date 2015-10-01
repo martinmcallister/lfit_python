@@ -1,7 +1,7 @@
 # MCMC run parameters
 nburn    = 1		# number of steps to use in burn-in phase
 nprod    = 10	# number of steps to use in production phase
-nwalkers = 320 	# must be even multiple of npars (npars = 6 + 11*necl or 6 + 15*necl)
+nwalkers = 320 	# must be even multiple of npars (npars = (3 or 6) + (11 or 15)*necl)
 nthread  = 6  	# number of CPU threads to use
 scatter  = 0.01 	# fractional scatter to add to starting ball of parameters
 fit      = 0		# actually fit (1), or just plot model as specified (0)

@@ -551,6 +551,10 @@ if __name__ == "__main__":
             lolim,best,uplim = np.percentile(par,[16,50,84])
             print "%s = %f +%f -%f" % (model.lookuptable[i],best,uplim-best,best-lolim)
             params.append(best)
+        if neclipses == 1:
+        	fig = thumbPlot(chain,model.lookuptable)
+        	fig.savefig('cornerPlot.pdf')
+        	plt.close()
         # Update model with best parameters
         model.pars = params
     
@@ -569,7 +573,6 @@ if __name__ == "__main__":
     gs.update(hspace=0.0)
     seaborn.set()
 
-    LHplot = True
     for iecl in range(neclipses):
         xp = x[iecl]
         yp = y[iecl]

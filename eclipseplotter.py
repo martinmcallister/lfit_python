@@ -115,6 +115,8 @@ if __name__ == "__main__":
         # Create array of 50 random numbers
         random_sample = np.random.randint(0,len(wdFlux),50)
         
+        lcs = []
+        
         for i in random_sample:
             pars = [wdFlux[i],dFlux[i],sFlux[i],rsFlux[i],q[i],dphi[i],rdisc[i], \
                     ulimb[i],rwd[i],scale[i],az[i],fis[i],dexp[i],phi0[i]]
@@ -131,11 +133,19 @@ if __name__ == "__main__":
             xf = np.linspace(xp.min(),xp.max(),1000)
             wf = 0.5*np.mean(np.diff(xf))*np.ones_like(xf)
             yf = CV.calcFlux(pars,xf,wf)
+            lcs.append(yf)
             
-            plt.plot(xf,yf,color='r',alpha=0.2)
+            # To plot individual models
+            #plt.plot(xf,yf,color='r',alpha=0.2)
+        
+        # To plot filled area    
+        lcs = np.array(lcs)
+        mu = lcs.mean(axis=0)
+        std = lcs.std(axis=0)
+        plt.fill_between(xf,mu+std,mu-std,color='r',alpha=0.4)   
         
         # Data
-        plt.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.5)
+        plt.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.6)
         # Labels
         plt.ylabel('Flux (mJy)')
         plt.xlabel('Orbital Phase')

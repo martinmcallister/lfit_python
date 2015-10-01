@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 
 def logg(m,r):
     MSUN = 1.9891e+30
-    RSUN = 695508000.0
-    G    = 6.67384e-11
-    m = m*MSUN*1000
-    r = r*RSUN*100
-    return numpy.log10(G*1.0e3*m/r/r)
+    RSUN = 6.95508e+8
+    G    = 6.67384e-11*1000 #cgs units
+    m = m*MSUN*1000 #cgs units
+    r = r*RSUN*100 #cgs units
+    return numpy.log10(G*m/(r**2))
     
 class Param:
     def __init__(self,shortString,longString,index):
@@ -147,6 +147,7 @@ if __name__ == "__main__":
         '$K_w$ (km s$^{-1}$)','$K_d$ (km s$^{-1}$)','Inclination (deg)']
         cornerplot = thumbPlot(dataIn,params)
         cornerplot.savefig('cornerPlot.pdf')
+        i = 0
         for param in paramList:
             if param.index > 10:
                 continue
@@ -156,7 +157,22 @@ if __name__ == "__main__":
             result = fitfunc(pars,x)
             getStatsPDF(x,result,param.shortString)
             plot(array,param.longString,fitSkewedGaussian(array))
+            # For calculation of log g
+            if i == 1:
+                maxloc = result.argmax()
+                m = x[maxloc]
+                m_err = m - percentile(x,result,0.16)
+            if i == 2:
+                maxloc = result.argmax()
+                r = x[maxloc]
+                r_err = r - percentile(x,result,0.16)
+            i += 1
         plt.close(plotMult.fig)
+        
+        logg = logg(m,r)
+        logg_err = 0.434*np.sqrt(((m_err/m)**2)+((2*r_err)/r)**2)
+        print "log g = %f +- %f" % (logg,logg_err)
+        
         
     else:
         dataList = []

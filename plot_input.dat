@@ -1,8 +1,9 @@
 # Name of chain file
-chain = chain_prod.txt
+chain = Output/ASASSN14ag_10ecl/All_eclipses_2/Chain.txt
+#chain = test_chain.txt
 
 # Number of eclipses
-neclipses = 1
+neclipses = 10
 
 # what phases to plot
 phi_start = -0.9
@@ -14,8 +15,8 @@ complex = 1
 # Gaussian processes used, yes (1) or no (0)?
 useGP = 1
 
-file_0  = data/asassn14ag_4.txt  		# file containing eclipse data, 3 columns - MJD, flux, err
-plot_0  = eclipse4_2.pdf
+file_0  = data/asassn14ag_1.txt  		# file containing eclipse data, 3 columns - MJD, flux, err
+plot_0  = eclipse1_2.pdf
 
 file_1  = data/asassn14ag_2.txt
 plot_1  = eclipse2_2.pdf
