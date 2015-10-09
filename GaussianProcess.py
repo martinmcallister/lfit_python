@@ -1,7 +1,11 @@
+from __future__ import absolute_import
+from __future__ import print_function
 from scipy.linalg import cho_factor, cho_solve
 import numpy as np
 import copy
 import ctypes
+from six.moves import range
+from six.moves import zip
 
 class Kernel(object):
     def __init__(self, pars, **kwargs):
@@ -288,7 +292,7 @@ if __name__ == "__main__":
     plt.imshow( k2.get_matrix(x,x) )
     plt.subplot(313)
     X = k2.get_matrix(x,x)/gp1.get_matrix(x)
-    print X.mean(), X.std()
+    print(X.mean(), X.std())
     plt.imshow(X)
     plt.show()
     

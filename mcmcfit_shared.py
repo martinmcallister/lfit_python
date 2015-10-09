@@ -1,9 +1,12 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import MaxNLocator
 from trm import roche
 import sys
+import configobj
 import lfit
 import emcee
 import warnings
@@ -15,6 +18,7 @@ from model import Model
 
 # parallellise with MPIPool
 from emcee.utils import MPIPool
+from six.moves import range
 
 class LCModel(Model):
     """CV lightcurve model for multiple eclipses.
@@ -208,7 +212,7 @@ class LCModel(Model):
             resids = y[iecl] - self.calc(iecl,phi[iecl],thisWidth)
             # Check for bugs in model
             if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-                print warning.warn('model gave nan or inf answers')
+                print(warning.warn('model gave nan or inf answers'))
                 return -np.inf
             lnlike += np.sum(np.log(2.0*np.pi*e[iecl]**2))
         return -0.5*(lnlike + self.chisq(phi,y,e,width))
@@ -287,8 +291,8 @@ class GPLCModel(LCModel):
         # the following range construction gives a list
         # of all mid-eclipse phases within phi array
         for n in range (int( phi.min() ), int( phi.max() )+1, 1):
-        	changepoints.append(n-dist_cp)
-        	changepoints.append(n+dist_cp)       
+            changepoints.append(n-dist_cp)
+            changepoints.append(n+dist_cp)       
         
         # save these values for speed
         if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
@@ -352,7 +356,7 @@ class GPLCModel(LCModel):
                                 
             # Check for bugs in model
             if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-                print warning.warn('model gave nan or inf answers')
+                print(warning.warn('model gave nan or inf answers'))
                 return -np.inf
                                 
             # Calculate ln_like using lnlikelihood function from GaussianProcess.py             
@@ -361,13 +365,7 @@ class GPLCModel(LCModel):
                 
 def parseInput(file):
     """Splits input file up making it easier to read"""
-    # Reads in input file and splits it into lines
-    blob = np.loadtxt(file,dtype='string',delimiter='\n')
-    input_dict = {}
-    for line in blob: 
-        # Each line is then split at the equals sign
-        k,v = line.split('=')
-        input_dict[k.strip()] = v.strip()
+    input_dict = configobj.ConfigObj(file)
     return input_dict
             
 if __name__ == "__main__":
@@ -469,7 +467,7 @@ if __name__ == "__main__":
     
     # Is starting position legal?
     if np.isinf(model.ln_prior()):
-        print 'Error: starting position violates priors'
+        print('Error: starting position violates priors')
         sys.exit(-1)
       
     # How many parameters?  
@@ -515,20 +513,20 @@ if __name__ == "__main__":
         sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)
 
         # Burn-in
-        print 'starting burn-in'
+        print('starting burn-in')
         # Run burn-in stage of mcmc using run_burnin function from mcmc_utils.py
         pos, prob, state = run_burnin(sampler,p0,nburn)
 
         # Run second burn-in stage, scattered around best fit of previous burn-in
         # DFM (emcee creator) reports this can help convergence in difficult cases
-        print 'starting second burn-in'
+        print('starting second burn-in')
         p0 = pos[np.argmax(prob)]
         p0 = emcee.utils.sample_ball(p0,scatter*p0,size=nwalkers)
         pos, prob, state = run_burnin(sampler,p0,nburn)
 
         #Production
         sampler.reset()
-        print 'starting main mcmc chain'
+        print('starting main mcmc chain')
         # Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
         sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")  
         '''
@@ -536,9 +534,9 @@ if __name__ == "__main__":
         pool.close()
         '''
         
-		#TODO: check if any values in the chain are INF, AND MASK OUT IF SO
+        #TODO: check if any values in the chain are INF, AND MASK OUT IF SO
         # LNPROB is in sampler.lnprobability and is shape (nwalkers, nsteps)
-		# sampler.chain has shape (nwalkers, nsteps, npars)
+        # sampler.chain has shape (nwalkers, nsteps, npars)
         
         # Create a chain (i.e. collect results from all walkers) using flatchain function
         # from mcmc_utils.py
@@ -549,23 +547,23 @@ if __name__ == "__main__":
         for i in range(npars):
             par = chain[:,i]
             lolim,best,uplim = np.percentile(par,[16,50,84])
-            print "%s = %f +%f -%f" % (model.lookuptable[i],best,uplim-best,best-lolim)
+            print("%s = %f +%f -%f" % (model.lookuptable[i],best,uplim-best,best-lolim))
             params.append(best)
         if neclipses == 1:
-        	fig = thumbPlot(chain,model.lookuptable)
-        	fig.savefig('cornerPlot.pdf')
-        	plt.close()
+            fig = thumbPlot(chain,model.lookuptable)
+            fig.savefig('cornerPlot.pdf')
+            plt.close()
         # Update model with best parameters
         model.pars = params
     
     # Print out chisq, ln prior, ln likelihood and ln probability for the model                 
-    print '\nFor this model:\n'
+    print('\nFor this model:\n')
     # Size of data required in order to calculate degrees of freedom (D.O.F)
     dataSize = np.sum((xa.size for xa in x))
-    print "Chisq          = %.2f (%d D.O.F)" % (model.chisq(x,y,e,w),dataSize - model.npars - 1)
-    print "ln prior       = %.2f" % model.ln_prior()
-    print "ln likelihood = %.2f" % model.ln_like(x,y,e,w)
-    print "ln probability = %.2f" % model.ln_prob(params,x,y,e,w)
+    print("Chisq          = %.2f (%d D.O.F)" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
+    print("ln prior       = %.2f" % model.ln_prior())
+    print("ln likelihood = %.2f" % model.ln_like(x,y,e,w))
+    print("ln probability = %.2f" % model.ln_prob(params,x,y,e,w))
     
     # Plot model & data
     # Use of gridspec to help with plotting
@@ -621,10 +619,10 @@ if __name__ == "__main__":
         ax2.set_xlabel('Orbital Phase')
         ax2.yaxis.set_major_locator(MaxNLocator(4,prune='both'))
         
-    	for ax in plt.gcf().get_axes()[::2]:
-        	ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
+        for ax in plt.gcf().get_axes()[::2]:
+            ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
         
-    	# Save plot images
-    	plt.savefig(output_plots[iecl])
-    	plt.show()
+        # Save plot images
+        plt.savefig(output_plots[iecl])
+        plt.show()
      
