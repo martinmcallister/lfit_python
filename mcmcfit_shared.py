@@ -204,18 +204,7 @@ class LCModel(Model):
     def ln_like(self,phi,y,e,width=None):
         """Calculates the natural log of the likelihood"""
         lnlike = 0.0
-        for iecl in range(self.necl):
-            if width:
-                thisWidth=width[iecl]
-            else:
-                thisWidth=None
-            resids = y[iecl] - self.calc(iecl,phi[iecl],thisWidth)
-            # Check for bugs in model
-            if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-                print(warning.warn('model gave nan or inf answers'))
-                return -np.inf
-            lnlike += np.sum(np.log(2.0*np.pi*e[iecl]**2))
-        return -0.5*(lnlike + self.chisq(phi,y,e,width))
+        return -0.5*self.chisq(phi,y,e,width)
         
     def ln_prob(self,parList,phi,y,e,width=None):
         """Calculates the natural log of the posterior probability (ln_prior + ln_like)"""
