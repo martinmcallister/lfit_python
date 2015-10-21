@@ -118,26 +118,30 @@ def scatterWalkers(pos0,percentScatter):
     scatter = np.array([np.random.normal(size=npars) for i in xrange(nwalkers)])
     return pos0 + percentScatter*pos0*scatter/100.0
 
-def run_burnin(sampler,startPos,nSteps,storechain=False):
+def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
     iStep = 0
-    bar = ProgressBar()
+    if progress:
+        bar = ProgressBar()
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,storechain=storechain):
-        bar.render(int(100*iStep/nSteps),'running Burn In')
+        if progress:
+            bar.render(int(100*iStep/nSteps),'running Burn In')
         iStep += 1
     return pos, prob, state
     
-def run_mcmc_save(sampler,startPos,nSteps,rState,file,**kwargs):
+def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
     '''runs and MCMC chain with emcee, and saves steps to a file'''
     #open chain save file
     if file:
         f = open(file,"w")
         f.close()
     iStep = 0
-    bar = ProgressBar()
+    if progress:
+        bar = ProgressBar()
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,rstate0=rState,storechain=True,**kwargs):
         if file:
             f = open(file,"a")
-        bar.render(int(100*iStep/nSteps),'running MCMC')
+        if progress:
+            bar.render(int(100*iStep/nSteps),'running MCMC')
         iStep += 1
         for k in range(pos.shape[0]):
             # loop over all walkers and append to file
