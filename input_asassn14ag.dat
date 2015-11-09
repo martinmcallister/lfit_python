@@ -1,9 +1,9 @@
 # MCMC run parameters
-nburn    = 1		# number of steps to use in burn-in phase
-nprod    = 10	# number of steps to use in production phase
+nburn    = 10000		# number of steps to use in burn-in phase
+nprod    = 10000	# number of steps to use in production phase
 nwalkers = 320 	# must be even multiple of npars (npars = (3 or 6) + (11 or 15)*necl)
 nthread  = 6  	# number of CPU threads to use
-scatter  = 0.01 	# fractional scatter to add to starting ball of parameters
+scatter  = 0.05 	# fractional scatter to add to starting ball of parameters
 fit      = 0		# actually fit (1), or just plot model as specified (0)
 
 # all model parameters have both a starting value and a prior
@@ -17,15 +17,15 @@ ampin_gp = -7.0 uniform -10.0 -2.0 1
 ampout_gp = -6.0 uniform -10.0 -2.0 1	
 tau_gp = -11.0 uniform -15.0 -7.0 1
 q     	= 0.15 uniform 0.001 3.5 1  
-dphi  	= 0.060 uniform 0.001 1 0.65 1  
+dphi  	= 0.060 uniform 0.001 1 1  
 rwd   	= 0.020 uniform 0.0001 0.1 1 
 
 # remaining parameters vary from eclipse to eclipse
-neclipses = 10
+neclipses = 2
 
 # what phases to plot/fit
 phi_start = -0.9
-phi_end = 0.18
+phi_end = 0.15
 
 # complex bright spot, yes (1) or no (0)?
 complex = 1
@@ -34,13 +34,13 @@ complex = 1
 useGP = 1
 
 # the following lines should have an entry for each individual eclipse
-file_0  = data/asassn14ag_1.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_0  = Results/ASASSN14ag/Data/asassn14ag_1.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_0  = eclipse1.pdf	
-wdFlux_0 = 0.302870	uniform	0.001 2 1 
-dFlux_0 = 0.153438  uniform 0.001 2 1
-sFlux_0 = 0.356324 uniform 0.001 2	1
+wdFlux_0 = 0.432870	uniform	0.001 2 1 
+dFlux_0 = 0.253438  uniform 0.001 2 1
+sFlux_0 = 0.556324 uniform 0.001 2	1
 rsFlux_0 = 0.018137 uniform 0.0 0.5 1  
-ulimb_0 = 0.390	gauss 0.390 0.005 0 
+ulimb_0 = 0.400	gauss 0.400 0.005 1 
 rdisc_0 = 0.484121	uniform	0.25 0.64 1  
 scale_0 = 0.035149	log_uniform	0.008 0.076 1 
 az_0 = 116.155797  uniform 70 177 1  
@@ -52,13 +52,13 @@ exp2_0 = 0.987353 uniform 0.01 3.0 1
 tilt_0 = 69.991444 uniform 0.0 180.0 1 
 yaw_0 = 4.384893 uniform	-90 90.0 1  
 
-file_1  = data/asassn14ag_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_1  = Results/ASASSN14ag/Data/asassn14ag_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_1  = eclipse2.pdf
-wdFlux_1 = 0.238002	uniform	0.001 2 1 
-dFlux_1 = 0.251832  uniform 0.001 2 1
-sFlux_1 = 0.334566 uniform 0.001 2	1
+wdFlux_1 = 0.388002	uniform	0.001 2 1 
+dFlux_1 = 0.401832  uniform 0.001 2 1
+sFlux_1 = 0.494566 uniform 0.001 2	1
 rsFlux_1 = 0.012318 uniform 0.0 0.5 1  
-ulimb_1 = 0.390	gauss 0.390 0.005 0 
+ulimb_1 = 0.400	gauss 0.400 0.005 1 
 rdisc_1 = 0.465085	uniform	0.25 0.64 1  
 scale_1 = 0.024156	log_uniform	0.008 0.076 1 
 az_1 = 115.993191 uniform 70 177 1  
@@ -70,13 +70,13 @@ exp2_1 = 0.970636 uniform 0.01 3.0 1
 tilt_1 = 82.816510  uniform 0.0 180.0 1 
 yaw_1 = 16.649513 uniform	-90 90.0 1
 
-file_2  = data/asassn14ag_3_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_2  = Results/ASASSN14ag/Data/asassn14ag_3.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_2  = eclipse3.pdf
 wdFlux_2 = 0.555771 	uniform	0.001 2 1 
 dFlux_2 = 0.695573  uniform 0.001 2 1 
 sFlux_2 = 0.440689 uniform 0.001 2	1 
 rsFlux_2 = 0.024478 uniform 0.0 0.5 1  
-ulimb_2 = 0.390	gauss 0.390 0.005 0 
+ulimb_2 = 0.412	gauss 0.412 0.005 1 
 rdisc_2 = 0.552069 uniform	0.25 0.64 1  
 scale_2 = 0.057282 log_uniform	0.008 0.076 1 
 az_2 = 140.086528 uniform 70 177 1  
@@ -88,13 +88,13 @@ exp2_2 = 1.034514 uniform 0.01 3.0 1
 tilt_2 = 63.924237 uniform 0.0 180.0 1 
 yaw_2 = -14.648682	uniform	-90 90.0 1  
 
-file_3  = data/asassn14ag_4_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_3  = Results/ASASSN14ag/Data/asassn14ag_4.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_3  = eclipse4.pdf
 wdFlux_3 = 0.271815 uniform	0.001 2 1 
 dFlux_3 = 0.922076 uniform 0.001 2 1 
 sFlux_3 = 0.609946 uniform 0.001 2	1 
 rsFlux_3 = 0.048011 uniform 0.0 0.5 1  
-ulimb_3 = 0.340 gauss 0.340 0.005 0 
+ulimb_3 = 0.352 gauss 0.352 0.005 1 
 rdisc_3 = 0.584433 uniform	0.25 0.64 1  
 scale_3 = 0.037683	log_uniform	0.008 0.076 1 
 az_3 = 140.318130 uniform 70 177 1  
@@ -106,13 +106,13 @@ exp2_3 = 0.507927 uniform 0.01 3.0 1
 tilt_3 = 165.870487 uniform 0.0 180.0 1 
 yaw_3 = 1.421095 uniform	-90 90.0 1  
 
-file_4 = data/asassn14ag_5_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_4 = Results/ASASSN14ag/Data/asassn14ag_5.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_4  = eclipse5.pdf
 wdFlux_4 = 0.334606	uniform	0.001 2 1 
 dFlux_4 = 0.649410 uniform 0.001 2 1 
 sFlux_4 = 0.344993 uniform 0.001 2	1 
 rsFlux_4 = 0.102349 uniform 0.0 0.5 1  
-ulimb_4 = 0.340	gauss 0.340 0.005 0 
+ulimb_4 = 0.303	gauss 0.303 0.005 1 
 rdisc_4 = 0.507808	uniform	0.25 0.64 1  
 scale_4 = 0.018047	log_uniform	0.008 0.076 1 
 az_4 = 96.855330 uniform 70 177 1  
@@ -124,13 +124,13 @@ exp2_4 = 1.049209  uniform 0.01 3.0 1
 tilt_4 = 142.766868 uniform 0.0 180.0 1 
 yaw_4 = 6.000075	uniform	-90 90.0 1  
 
-file_5 = data/asassn14ag_6_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_5 = Results/ASASSN14ag/Data/asassn14ag_6.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_5  = eclipse6.pdf
 wdFlux_5 = 0.524815	uniform	0.001 2 1 
 dFlux_5 = 0.284903  uniform 0.001 2 1
 sFlux_5 = 0.481831 uniform 0.001 2	1
 rsFlux_5 = 0.041323 uniform 0.0 0.5 1  
-ulimb_5 = 0.390	gauss 0.390 0.005 0 
+ulimb_5 = 0.412	gauss 0.412 0.005 1 
 rdisc_5 = 0.499260	uniform	0.25 0.64 1  
 scale_5 = 0.040244	log_uniform	0.008 0.076 1 
 az_5 = 105.464121  uniform 70 177 1  
@@ -142,13 +142,13 @@ exp2_5 = 1.091115 uniform 0.01 3.0 1
 tilt_5 = 107.312046  uniform 0.0 180.0 1 
 yaw_5 = 14.889438 uniform	-90 90.0 1  
 
-file_6  = data/asassn14ag_7_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_6  = Results/ASASSN14ag/Data/asassn14ag_7.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_6  = eclipse7.pdf
 wdFlux_6 = 0.343226	uniform	0.001 2 1 
 dFlux_6 = 0.377145 uniform 0.001 2 1
 sFlux_6 = 0.448655 uniform 0.001 2	1 
 rsFlux_6 = 0.040000 uniform 0.0 0.5 1  
-ulimb_6 = 0.340 	gauss 0.340 0.005 0 
+ulimb_6 = 0.352 	gauss 0.352 0.005 1 
 rdisc_6 = 0.471309 uniform	0.25 0.64 1  
 scale_6 = 0.044841 	log_uniform	0.008 0.076 1 
 az_6 = 122.677106 uniform 70 177 1  
@@ -160,13 +160,13 @@ exp2_6 = 1.305627 uniform 0.01 3.0 1
 tilt_6 = 150.138784 uniform 0.0 180.0 1 
 yaw_6 = -6.089943	uniform	-90 90.0 1  
 
-file_7  = data/asassn14ag_8_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_7  = Results/ASASSN14ag/Data/asassn14ag_8.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_7  = eclipse8.pdf
 wdFlux_7 = 0.427531 	uniform	0.001 2 1 
 dFlux_7 = 0.239401  uniform 0.001 2 1 
 sFlux_7 = 0.475566  uniform 0.001 2	1
 rsFlux_7 = 0.035798 uniform 0.0 0.5 1  
-ulimb_7 = 0.390	gauss 0.390 0.005 0 
+ulimb_7 = 0.412	gauss 0.412 0.005 1 
 rdisc_7 = 0.441144	uniform	0.25 0.64 1  
 scale_7 = 0.022707	log_uniform	0.008 0.075 1 
 az_7 = 93.545927  uniform 70 177 1  
@@ -178,15 +178,15 @@ exp2_7 = 1.101207  uniform 0.01 3.0 1
 tilt_7 = 94.021121 uniform 0.0 180.0 1 
 yaw_7 = 52.214090 uniform	-90 90.0 1
 
-file_8  = data/asassn14ag_9_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_8  = Results/ASASSN14ag/Data/asassn14ag_9.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_8  = eclipse9.pdf
 wdFlux_8 = 0.450654	uniform	0.001 2 1 
 dFlux_8 = 0.452077 uniform 0.001 2 1
 sFlux_8 = 0.607984 uniform 0.001 2	1
 rsFlux_8 = 0.001111 uniform 0.0 0.5 1  
-ulimb_8 = 0.345	gauss 0.345 0.005 0 
+ulimb_8 = 0.352	gauss 0.352 0.005 1 
 rdisc_8 = 0.436589	uniform	0.25 0.64 1  
-scale_8 = 0.032578 log_uniform	0.008 0.076 1 
+scale_8 = 0.032578 log_uniform	0.008 0.076 1
 az_8 = 128.810062 uniform 70 177 1  
 fis_8 = 0.153564 uniform 0.001 0.9	1 
 dexp_8 = 1.162509 uniform 0.0001 2.5 1 
@@ -196,13 +196,13 @@ exp2_8 = 0.990716 uniform 0.01 3.0 1
 tilt_8 = 126.170639 uniform 0.0 180.0 1
 yaw_8 = 14.382100	uniform	-90 90.0 1
 
-file_9 = data/asassn14ag_10_2.txt  		# file containing data to fit. 3 columns - MJD, flux, err
+file_9 = Results/ASASSN14ag/Data/asassn14ag_10.txt  		# file containing data to fit. 3 columns - MJD, flux, err
 plot_9  = eclipse10.pdf
 wdFlux_9 = 0.461112	uniform	0.001 2 1 
 dFlux_9 = 0.385484 uniform 0.001 2 1 
 sFlux_9 = 0.746984 uniform 0.001 2	1 
 rsFlux_9 = 0.037267 uniform 0.0 0.5 1  
-ulimb_9 = 0.390	gauss 0.390 0.005 0 
+ulimb_9 = 0.412	gauss 0.412 0.005 1 
 rdisc_9 = 0.322995	uniform	0.25 0.64 1  
 scale_9 = 0.02009 log_uniform	0.008 0.076 1 
 az_9 = 115.853176 uniform 70 177 1  

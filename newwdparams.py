@@ -143,7 +143,54 @@ class Flux(object):
         self.mag = 2.5*numpy.log10(3631000/self.val)
         self.magerr = 2.5*0.434*(self.err/self.val)
         
-def plotColors(mags,mask):
+def plotFluxes(fluxes,fluxes_err,mask,model):
+
+    teff = model[0] 
+    logg = model[1]
+    d = model[2]
+    ebv = model[3] 
+    
+    # load bergeron models
+    data = numpy.loadtxt('Bergeron/da_ugrizkg5.txt')
+    
+    teffs = np.unique(data[:,0])
+    loggs = np.unique(data[:,1])
+    
+    nteff = len(teffs)
+    nlogg = len(loggs)
+
+    abs_mags = []
+    # u data in col 4, g in 5, r in 6, i in 7, z in 8, kg5 in 9
+    for col_indx in range(4,10):
+        z = data[:,col_indx]
+        z = z.reshape((nlogg,nteff))
+        # cubic bivariate spline interpolation
+        func = interp.RectBivariateSpline(loggs,teffs,z,kx=3,ky=3)
+        abs_mags.append(func(logg,teff)[0,0])
+    abs_mags = np.array(abs_mags)
+    
+    # A_x/E(B-V) extinction from Cardelli (1989)
+    # Where are these values from?? (KG5 estimated)
+    
+    ext       = ebv*np.array([5.155,3.793,2.751,2.086,1.479,3.5])
+    dmod      = 5.0*np.log10(d/10.0)
+    app_red_mags = abs_mags + ext + dmod
+    
+    # calculate fluxes from model magnitudes
+    model_fluxes = 3631e3*10**(-0.4*app_red_mags)
+    
+    # central wavelengths
+    wavelengths = np.array([355.7,482.5,626.1,767.2,909.7,507.5])
+    
+    plt.errorbar(wavelengths[mask],model_fluxes[mask],xerr=None,yerr=None,fmt='o',ls='none',color='r',capsize=3)
+    plt.errorbar(wavelengths[mask],fluxes[mask],xerr=None,yerr=fluxes_err[mask],fmt='o',ls='none',color='b',capsize=3)
+    plt.xlabel('Wavelength (nm)')
+    plt.ylabel('Flux (mJy)')
+    plt.savefig('fluxPlot.pdf')
+    plt.show()
+
+def plotColors(mags):
+
     # load bergeron models
     data = numpy.loadtxt('Bergeron/da_ugrizkg5.txt')
 
@@ -158,10 +205,6 @@ def plotColors(mags,mask):
     # calculate colours   
     ug = umags-gmags
     gr = gmags-rmags
-    ri = rmags-imags
-    ig = imags-gmags
-    ukg5 = umags-kg5mags
-    kg5i = kg5mags-imags
 
     # make grid of teff, logg and colours
     teff = numpy.unique(data[:,0])
@@ -171,125 +214,69 @@ def plotColors(mags,mask):
     # reshape colours onto 2D grid of (logg, teff)
     ug = ug.reshape((nlogg,nteff))
     gr = gr.reshape((nlogg,nteff))
-    ri = ri.reshape((nlogg,nteff))
-    ig = ig.reshape((nlogg,nteff))
-    ukg5 = ukg5.reshape((nlogg,nteff))
-    kg5i = kg5i.reshape((nlogg,nteff))
     
     # DATA!
-    if mask[0]:
-        # If u band data available, chances are g and r data available too
-        # u-g
-        col1  = mags[0].mag - mags[1].mag
-        col1e = numpy.sqrt(mags[0].magerr**2 + mags[1].magerr**2)
-        col1l = mags[0].band + '-' + mags[1].band
-        # g-r 
-        col2  = mags[1].mag - mags[2].mag
-        col2e = numpy.sqrt(mags[1].magerr**2 + mags[2].magerr**2)
-        col2l = mags[1].band + '-' + mags[2].band
+    # If u band data available, chances are g and r data available too
+    # u-g
+    col1  = mags[0].mag - mags[1].mag
+    col1e = numpy.sqrt(mags[0].magerr**2 + mags[1].magerr**2)
+    col1l = mags[0].band + '-' + mags[1].band
+    # g-r 
+    col2  = mags[1].mag - mags[2].mag
+    col2e = numpy.sqrt(mags[1].magerr**2 + mags[2].magerr**2)
+    col2l = mags[1].band + '-' + mags[2].band
     
-        print '%s = %f +/- %f' % (col1l,col1,col1e)
-        print '%s = %f +/- %f' % (col2l,col2,col2e)
+    print '%s = %f +/- %f' % (col1l,col1,col1e)
+    print '%s = %f +/- %f' % (col2l,col2,col2e)
 
-        # now plot everthing
-        for a in range(len(logg)):
-            plt.plot(ug[a,:],gr[a,:],'k-')
+    # now plot everthing
+    for a in range(len(logg)):
+        plt.plot(ug[a,:],gr[a,:],'k-')
         
         
-        for it in range(0,len(teff),4):
-            plt.plot(ug[:,a],gr[:,a],'r--')
+    for a in range(0,len(teff),4):
+        plt.plot(ug[:,a],gr[:,a],'r--')
         
-        # annotate for log g
-        #xa = ug[0,nteff/3]+0.03
-        #ya = gr[0,nteff/3]-0.02
-        #t = plt.annotate('log g = 7.0',xy=(xa,ya),color='k',horizontalalignment='center', verticalalignment='center',size='small')
-        #t.set_rotation(30.0)
-        #xa = ug[-1,nteff/3]-0.05
-        #ya = gr[-1,nteff/3]+0.0
-        #t = plt.annotate('log g = 9.0',xy=(xa,ya),color='k',horizontalalignment='center', verticalalignment='center',size='small')
-        #t.set_rotation(45.0)
+    # annotate for log g
+    #xa = ug[0,nteff/3]+0.03
+    #ya = gr[0,nteff/3]-0.02
+    #t = plt.annotate('log g = 7.0',xy=(xa,ya),color='k',horizontalalignment='center', verticalalignment='center',size='small')
+    #t.set_rotation(30.0)
+    #xa = ug[-1,nteff/3]-0.05
+    #ya = gr[-1,nteff/3]+0.0
+    #t = plt.annotate('log g = 9.0',xy=(xa,ya),color='k',horizontalalignment='center', verticalalignment='center',size='small')
+    #t.set_rotation(45.0)
     
-        # annotate for teff
-        xa = ug[0,4] + 0.03
-        ya = gr[0,4]
-        val = teff[4]
-        t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='center',size='small')
-        t.set_rotation(0.0)
-        xa = ug[0,8] + 0.03
-        ya = gr[0,8]
-        val = teff[8]
-        t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='center',size='small')
-        t.set_rotation(0.0)
-        xa = ug[0,20] + 0.01
-        ya = gr[0,20] - 0.01
-        val = teff[20]
-        t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='top',size='small')
-        t.set_rotation(0.0)
-        xa = ug[0,24] + 0.01
-        ya = gr[0,24] - 0.01
-        val = teff[24]
-        t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='top',size='small')
-        t.set_rotation(0.0)    
+    # annotate for teff
+    xa = ug[0,4] + 0.03
+    ya = gr[0,4]
+    val = teff[4]
+    t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='center',size='small')
+    t.set_rotation(0.0)
+    xa = ug[0,8] + 0.03
+    ya = gr[0,8]
+    val = teff[8]
+    t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='center',size='small')
+    t.set_rotation(0.0)
+    xa = ug[0,20] + 0.01
+    ya = gr[0,20] - 0.01
+    val = teff[20]
+    t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='top',size='small')
+    t.set_rotation(0.0)
+    xa = ug[0,24] + 0.01
+    ya = gr[0,24] - 0.01
+    val = teff[24]
+    t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='top',size='small')
+    t.set_rotation(0.0)    
     
-        # plot data
-        plt.errorbar(col1,col2,xerr=col1e,yerr=col2e,fmt='o',ls='none',color='r',capsize=3)
-        plt.xlabel(col1l)
-        plt.ylabel(col2l)
-        plt.xlim([-0.5,1])
-        plt.ylim([-0.5,0.5])
-        plt.savefig('colorPlot.pdf')
-    else:
-        # i-g
-        col1  = mags[3].mag - mags[1].mag
-        col1e = numpy.sqrt(mags[3].magerr**2 + mags[1].magerr**2)
-        col1l = mags[3].band + '-' + mags[1].band
-        # g-r 
-        col2  = mags[1].mag - mags[2].mag
-        col2e = numpy.sqrt(mags[1].magerr**2 + mags[2].magerr**2)
-        col2l = mags[1].band + '-' + mags[2].band
-    
-        print '%s = %f +/- %f' % (col1l,col1,col1e)
-        print '%s = %f +/- %f' % (col2l,col2,col2e)
-
-        # now plot everthing
-        for a in range(len(logg)):
-            plt.plot(ig[a,:],gr[a,:],'k-')
-        
-        
-        for a in range(0,len(teff),4):
-            plt.plot(ig[:,a],gr[:,a],'r--')
-            
-        # annotate for teff
-        xa = ig[0,4] + 0.03
-        ya = gr[0,4]
-        val = teff[4]
-        t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='center',size='small')
-        t.set_rotation(0.0)
-        xa = ig[0,8] + 0.03
-        ya = gr[0,8]
-        val = teff[8]
-        t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='center',size='small')
-        t.set_rotation(0.0)
-        xa = ig[0,20] + 0.01
-        ya = gr[0,20] - 0.01
-        val = teff[20]
-        t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='top',size='small')
-        t.set_rotation(0.0)
-        xa = ig[0,24] + 0.01
-        ya = gr[0,24] - 0.01
-        val = teff[24]
-        t = plt.annotate('T = %d K' % val,xy=(xa,ya),color='r',horizontalalignment='left', verticalalignment='top',size='small')
-        t.set_rotation(0.0)    
-    
-            
-        # plot data
-        plt.errorbar(col1,col2,xerr=col1e,yerr=col2e,fmt='o',ls='none',color='r',capsize=3)
-        plt.xlabel(col1l)
-        plt.ylabel(col2l)
-        plt.xlim([-2,1])
-        plt.ylim([-1,1])
-        plt.savefig('colorPlot.pdf')
-        
+    # plot data
+    plt.errorbar(col1,col2,xerr=col1e,yerr=col2e,fmt='o',ls='none',color='r',capsize=3)
+    plt.xlabel(col1l)
+    plt.ylabel(col2l)
+    plt.xlim([-0.5,1])
+    plt.ylim([-0.5,0.5])
+    plt.savefig('colorPlot.pdf')
+    plt.show()
         
 if __name__ == "__main__":
     warnings.simplefilter("ignore")
@@ -330,7 +317,8 @@ if __name__ == "__main__":
         
     # Load in chain file
     file = input_dict['chain']
-    chain = readchain(file)
+    #chain = readchain(file)
+    chain = readchain_dask(file)
     nwalkers, nsteps, npars = chain.shape
     fchain = flatchain(chain,npars,thin=thin)
     
@@ -354,7 +342,7 @@ if __name__ == "__main__":
     if len(rband_filters[0] > 0): rband_used = True
     if len(iband_filters[0] > 0): iband_used = True
     if len(zband_filters[0] > 0): zband_used = True
-    #if len(kg5band_filters[0] > 0): kg5band_used = True
+    if len(kg5band_filters[0] > 0): kg5band_used = True
     
     # Create arrays to be filled with all wd fluxes and mags
     fluxes = [0,0,0,0,0,0]
@@ -544,7 +532,11 @@ if __name__ == "__main__":
         bestPars = [par for par in myModel]
     
     # Plot color-color plot
-    plotColors(mags,mask)
+    if mask[0]:
+        plotColors(mags)
+        
+    # Plot measured and model fluxes
+    plotFluxes(fluxes,fluxes_err,mask,bestPars)
         
     
     

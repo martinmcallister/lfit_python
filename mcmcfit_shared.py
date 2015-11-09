@@ -12,6 +12,7 @@ from mcmc_utils import *
 import seaborn
 from collections import MutableSequence
 from model import Model
+import time
 
 # parallellise with MPIPool
 from emcee.utils import MPIPool
@@ -57,8 +58,6 @@ class LCModel(Model):
         # How many eclipses?
         self.necl = 1
 
-        
-
     def addEclipse(self,parList):
         """Allows additional eclipses to be added.
         
@@ -90,6 +89,7 @@ class LCModel(Model):
         parNames = [template.format(ecl) for template in parNameTemplate]
         # List filled in with current parameter values 
         parVals = [self.getValue(name) for name in parNames]
+        print parVals
         # CV Flux calculated from list of current parameter values
         return self.cv.calcFlux(parVals,phi,width)
         
@@ -103,6 +103,10 @@ class LCModel(Model):
                 thisWidth=None
             # chisq calculation
             resids = (y[iecl] - self.calc(iecl,phi[iecl],thisWidth)) / e[iecl]
+            # Check for bugs in model
+            if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
+                print warning.warn('model gave nan or inf answers')
+                return -np.inf
             retVal += np.sum(resids**2)
         return retVal
         
@@ -199,19 +203,7 @@ class LCModel(Model):
          
     def ln_like(self,phi,y,e,width=None):
         """Calculates the natural log of the likelihood"""
-        lnlike = 0.0
-        for iecl in range(self.necl):
-            if width:
-                thisWidth=width[iecl]
-            else:
-                thisWidth=None
-            resids = y[iecl] - self.calc(iecl,phi[iecl],thisWidth)
-            # Check for bugs in model
-            if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-                print warning.warn('model gave nan or inf answers')
-                return -np.inf
-            lnlike += np.sum(np.log(2.0*np.pi*e[iecl]**2))
-        return -0.5*(lnlike + self.chisq(phi,y,e,width))
+        return -0.5*self.chisq(phi,y,e,width)
         
     def ln_prob(self,parList,phi,y,e,width=None):
         """Calculates the natural log of the posterior probability (ln_prior + ln_like)"""
@@ -258,19 +250,19 @@ class GPLCModel(LCModel):
         dphi_change = np.fabs(self._olddphi - dphi.currVal)/dphi.currVal
         q_change    = np.fabs(self._oldq - q.currVal)/q.currVal
         rwd_change  = np.fabs(self._oldrwd - rwd.currVal)/rwd.currVal
-        
-        if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
-            # Calculate inclination
-            inc = roche.findi(q.currVal,dphi.currVal)
-            # Calculate wd contact phases 3 and 4
-            phi3, phi4 = roche.wdphases(q.currVal, inc, rwd.currVal, ntheta=10)
-            # Calculate length of wd egress
-            dpwd = phi4 - phi3
-            # Distance from changepoints to mideclipse
-            dist_cp = dphi.currVal/2.+dpwd/2.
+    
+    	if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
+    		# Calculate inclination
+    		inc = roche.findi(q.currVal,dphi.currVal)
+    		# Calculate wd contact phases 3 and 4
+    		phi3, phi4 = roche.wdphases(q.currVal, inc, rwd.currVal, ntheta=10)
+    		# Calculate length of wd egress
+    		dpwd = phi4 - phi3
+    		# Distance from changepoints to mideclipse
+    		dist_cp = dphi.currVal/2.+dpwd/2.
         else:
-           dist_cp = self._dist_cp
-                    
+        	dist_cp = self._dist_cp
+        	            
         '''# Find location of all changepoints
         for iecl in range(self.necl):
             changepoints = []
@@ -285,17 +277,17 @@ class GPLCModel(LCModel):
        
         changepoints = []
         # the following range construction gives a list
-        # of all mid-eclipse phases within phi array
+    	# of all mid-eclipse phases within phi array
         for n in range (int( phi.min() ), int( phi.max() )+1, 1):
         	changepoints.append(n-dist_cp)
         	changepoints.append(n+dist_cp)       
         
         # save these values for speed
         if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
-            self._dist_cp = dist_cp
-            self._oldq = q.currVal
-            self._olddphi = dphi.currVal
-            self._oldrwd = rwd.currVal
+        	self._dist_cp = dist_cp
+        	self._oldq = q.currVal
+        	self._olddphi = dphi.currVal
+        	self._oldrwd = rwd.currVal
         
         return changepoints
      
@@ -310,7 +302,10 @@ class GPLCModel(LCModel):
         ln_ampin = self.getParam('ampin_gp')
         ln_ampout = self.getParam('ampout_gp')
         ln_tau = self.getParam('tau_gp')
-        ampin = np.exp(ln_ampin.currVal)
+        
+        print ln_ampin.currVal,ln_ampout.currVal,ln_tau.currVal
+    	
+    	ampin = np.exp(ln_ampin.currVal)
         ampout = np.exp(ln_ampout.currVal)
         tau = np.exp(ln_tau.currVal)
        
@@ -432,7 +427,6 @@ if __name__ == "__main__":
     # the ln_prob function here to make something that can be pickled
     def ln_prob(parList,phi,y,e,width=None):
         return model.ln_prob(parList,phi,y,e,width=None)
-    
     # Add in additional eclipses as necessary
     parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
         'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
@@ -491,6 +485,7 @@ if __name__ == "__main__":
         '''    
         p0 = np.array(params) # Starting parameters
         
+        
         '''
         BIZARRO WORLD!
         Calling the ln_prob function once outside of multiprocessing
@@ -513,12 +508,12 @@ if __name__ == "__main__":
         
         # Instantiate Ensemble sampler
         sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)
-
+		
         # Burn-in
         print 'starting burn-in'
         # Run burn-in stage of mcmc using run_burnin function from mcmc_utils.py
         pos, prob, state = run_burnin(sampler,p0,nburn)
-
+		
         # Run second burn-in stage, scattered around best fit of previous burn-in
         # DFM (emcee creator) reports this can help convergence in difficult cases
         print 'starting second burn-in'
@@ -611,7 +606,7 @@ if __name__ == "__main__":
         ax2 = plt.subplot(gs[1,0],sharex=ax1)
         ax2.errorbar(xp,yp-yp_fit,yerr=ep,color='k',fmt='.',capsize=0,alpha=0.5)
         #ax2.set_xlim(ax1.get_xlim())
-        #ax2.set_xlim(-0.1,0.15)
+        #ax2.set_xlim(-0.1,0.12)
         if useGP:
             ax2.fill_between(xp,mu+2.0*std,mu-2.0*std,color='r',alpha=0.4)
 
@@ -620,6 +615,7 @@ if __name__ == "__main__":
         ax2.set_ylabel('Residuals (mJy)')
         ax2.set_xlabel('Orbital Phase')
         ax2.yaxis.set_major_locator(MaxNLocator(4,prune='both'))
+        ax1.tick_params(axis='x',labelbottom='off')
         
     	for ax in plt.gcf().get_axes()[::2]:
         	ax.yaxis.set_major_locator(MaxNLocator(prune='both'))

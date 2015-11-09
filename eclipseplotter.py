@@ -1,6 +1,7 @@
 from mcmc_utils import *
 import numpy as np
 import lfit
+import time
 
 def parseInput(file):
     """Splits input file up making it easier to read"""
@@ -26,16 +27,18 @@ if __name__ == "__main__":
     
     # Load in chain file
     file = input_dict['chain']
-    chain = readchain(file)
-    nwalkers, nsteps, npars = chain.shape
-    fchain = flatchain(chain,npars,thin=1)
     
     # Read information about neclipses, plot ranges, complex bs, gps
     neclipses = int(input_dict['neclipses'])
+    thin     = int( input_dict['nthin'] )
     start = float(input_dict['phi_start'])
     end = float(input_dict['phi_end'])
     complex   = bool(int(input_dict['complex']))
     useGP     = bool(int(input_dict['useGP']))
+    
+    chain = readchain_dask(file)
+    nwalkers, nsteps, npars = chain.shape
+    fchain = flatchain(chain,npars,thin=thin)
     
     # Read in file names containing eclipse data, as well as output plot file names
     files = []
@@ -60,6 +63,29 @@ if __name__ == "__main__":
         y.append(yt[mask])
         e.append(et[mask])
         w.append(wt[mask])
+        
+    if complex == 1:
+        a = 15
+    else:
+        a = 11
+        
+    if useGP == 1:
+        b = 6
+    else:
+        b = 3
+     
+    # Create new chain for corner plot (only included params from 1st eclipse)  
+    chain_2 = fchain[:,0:a+b]
+    paramlist = ['wdFlux_0','dFlux_0','sFlux_0','rsFlux_0','q','dphi','rdisc_0','ulimb_0','rwd','scale_0','az_0','fis_0','dexp_0','phi0_0']
+    if complex:
+        paramlist.extend(['exp1_0','exp2_0','tilt_0','yaw_0'])
+    if useGP:
+        paramlist.extend(['ampin_gp','ampout_gp','tau_gp'])
+        
+    # Create corner plot
+    fig = thumbPlot(chain_2,paramlist)
+    fig.savefig('cornerPlot.pdf')
+    plt.close()
                  
     for iecl in range(neclipses):
         # Read chain file
@@ -84,14 +110,7 @@ if __name__ == "__main__":
                 tilt = fchain[:,16]
                 yaw = fchain[:,17]
         else:
-            if complex == 1 & useGP == 1:
-                i = 15*iecl + 6
-            if complex == 0 & useGP == 1:
-                i = 11*iecl + 6
-            if complex == 1 & useGP == 0:
-                i = 15*iecl + 3
-            if complex == 0 & useGP == 0:
-                i = 11*iecl + 3
+            i = a*iecl + b
             wdFlux = fchain[:,i]
             dFlux = fchain[:,i+1]
             sFlux = fchain[:,i+2]

@@ -5,7 +5,8 @@ from trm import roche
 import os, sys
 from astropy import constants as const, units
 from astropy.table import Table, Column
-from astropy.utils.console import ProgressBar
+from astropy.utils.console import ProgressBar as PB
+from progress import ProgressBar
 # see if our astropy version supports quantities or not
 quantitySupport = True
 try:
@@ -207,8 +208,8 @@ if __name__ == "__main__":
     parser.add_argument('e_twd',action='store',type=float,help='error on wd temp')
     parser.add_argument('p',action='store',type=float,help='orbital period (days)')
     parser.add_argument('e_p',action='store',type=float,help='error on period')
-    parser.add_argument('--thin','-t',type=int,help='amount to thin MCMC chain by',default=10)
-    parser.add_argument('--nthreads','-n',type=int,help='number of threads to run',default=4)
+    parser.add_argument('--thin','-t',type=int,help='amount to thin MCMC chain by',default=1)
+    parser.add_argument('--nthreads','-n',type=int,help='number of threads to run',default=6)
 
     parser.add_argument('--dir','-d',help='directory with WD models',default='/Users/mmc/lfit/params')
     args = parser.parse_args()
@@ -217,7 +218,8 @@ if __name__ == "__main__":
     nthreads = args.nthreads
     baseDir = args.dir
 
-    chain = readchain(file)
+    #chain = readchain(file)
+    chain = readchain_dask(file)
     nwalkers, nsteps, npars = chain.shape
     fchain = flatchain(chain,npars,thin=thin)
 
@@ -246,10 +248,15 @@ if __name__ == "__main__":
             
     psolve = partial(solve,baseDir=baseDir)
     data = zip(qVals,dphiVals,rwVals,twdVals,pVals)
-    solvedParams = ProgressBar.map(psolve,data,multiprocess=True)
-     
+    solvedParams = PB.map(psolve,data,multiprocess=True)
+    
+    print 'Writing out results...'
     # loop over these results and put all the solutions in our results table
+    iStep = 0    
+    bar = ProgressBar()
     for thisResult in solvedParams:
+        bar.render(int(100*iStep/(len(solvedParams))),'Combining data')
+        iStep += 1
         if thisResult is not None:
             results.add_row(thisResult)      
 
