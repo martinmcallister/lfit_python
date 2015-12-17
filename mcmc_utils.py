@@ -8,8 +8,9 @@ try:
     # There are two python packages with conflicting names                      
     getattr(triangle,"corner")
 except AttributeError:
-    # We want the other package                                                 
+    # We want the other package
     import triangle_plot as triangle
+    
 from progress import ProgressBar
 import scipy.integrate as intg
 import warnings
