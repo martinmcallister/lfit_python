@@ -14,6 +14,8 @@ from collections import MutableSequence
 from model import Model
 import time
 
+sys.settrace
+
 # parallellise with MPIPool
 from emcee.utils import MPIPool
 
@@ -89,9 +91,11 @@ class LCModel(Model):
         parNames = [template.format(ecl) for template in parNameTemplate]
         # List filled in with current parameter values 
         parVals = [self.getValue(name) for name in parNames]
-        print parVals
         # CV Flux calculated from list of current parameter values
-        return self.cv.calcFlux(parVals,phi,width)
+        try:
+            return self.cv.calcFlux(parVals,phi,width)
+        except:
+            return -np.inf
         
     def chisq(self,phi,y,e,width=None):
         """Calculates chisq, which is required in ln_like"""
@@ -110,7 +114,7 @@ class LCModel(Model):
             retVal += np.sum(resids**2)
         return retVal
         
-    def ln_prior(self):
+    def ln_prior(self,verbose=False):
         """Returns the natural log of the prior probability of this model.
         
         Certain parameters (dphi, rdisc, scale, az) need to be treated as special cases,
@@ -119,7 +123,7 @@ class LCModel(Model):
         # Use of the super function allows abstract class in model.py to be referenced
         # Here the ln_prior function is referenced
         retVal = super(LCModel,self).ln_prior()
-
+        
         # Remaining part of this function deals with special cases
         # dphi
         tol = 1.0e-6
@@ -131,12 +135,15 @@ class LCModel(Model):
             maxphi = roche.findphi(q.currVal,90.0)
             # dphi cannot be greater than (or within a certain tolerance of) maxphi
             if dphi.currVal > maxphi-tol:
+                print('Combination of q and dphi is invalid')
                 retVal += -np.inf
             else:
                 retVal += dphi.prior.ln_prob(dphi.currVal)
         except:
             # We get here when roche.findphi raises error - usually invalid q
             retVal += -np.inf
+            if verbose:
+                print('Combination of q and dphi is invalid')
         
         # rdisc 
         try:
@@ -154,6 +161,8 @@ class LCModel(Model):
                     retVal += rdisc.prior.ln_prob(rdisc.currVal)
         except:
             # We get here when roche.findphi raises error - usually invalid q
+            if verbose:
+                print('Rdisc and q imply disc does not hit stream')
             retVal += -np.inf
         
         #BS scale
@@ -166,6 +175,8 @@ class LCModel(Model):
             # BS scale must be within allowed range 
             if scale.currVal < minscale or scale.currVal > maxscale:
                 retVal += -np.inf
+                if verbose:
+                    print('BS Scale is not between 1/3 and 3 times WD size')
             else:
                 retVal += scale.prior.ln_prob(scale.currVal)
             
@@ -196,6 +207,8 @@ class LCModel(Model):
                 else:
                     retVal += az.prior.ln_prob(az.currVal)
         except:
+            if verbose:
+                print('Stream does not hit disc, or az is outside 80 degree tolerance')
             # We get here when roche.findphi raises error - usually invalid q
             retVal += -np.inf
             
@@ -251,18 +264,18 @@ class GPLCModel(LCModel):
         q_change    = np.fabs(self._oldq - q.currVal)/q.currVal
         rwd_change  = np.fabs(self._oldrwd - rwd.currVal)/rwd.currVal
     
-    	if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
-    		# Calculate inclination
-    		inc = roche.findi(q.currVal,dphi.currVal)
-    		# Calculate wd contact phases 3 and 4
-    		phi3, phi4 = roche.wdphases(q.currVal, inc, rwd.currVal, ntheta=10)
-    		# Calculate length of wd egress
-    		dpwd = phi4 - phi3
-    		# Distance from changepoints to mideclipse
-    		dist_cp = dphi.currVal/2.+dpwd/2.
+        if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
+            # Calculate inclination
+            inc = roche.findi(q.currVal,dphi.currVal)
+            # Calculate wd contact phases 3 and 4
+            phi3, phi4 = roche.wdphases(q.currVal, inc, rwd.currVal, ntheta=10)
+            # Calculate length of wd egress
+            dpwd = phi4 - phi3
+            # Distance from changepoints to mideclipse
+            dist_cp = dphi.currVal/2.+dpwd/2.
         else:
-        	dist_cp = self._dist_cp
-        	            
+            dist_cp = self._dist_cp
+                        
         '''# Find location of all changepoints
         for iecl in range(self.necl):
             changepoints = []
@@ -277,17 +290,17 @@ class GPLCModel(LCModel):
        
         changepoints = []
         # the following range construction gives a list
-    	# of all mid-eclipse phases within phi array
+        # of all mid-eclipse phases within phi array
         for n in range (int( phi.min() ), int( phi.max() )+1, 1):
-        	changepoints.append(n-dist_cp)
-        	changepoints.append(n+dist_cp)       
+            changepoints.append(n-dist_cp)
+            changepoints.append(n+dist_cp)       
         
         # save these values for speed
         if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
-        	self._dist_cp = dist_cp
-        	self._oldq = q.currVal
-        	self._olddphi = dphi.currVal
-        	self._oldrwd = rwd.currVal
+            self._dist_cp = dist_cp
+            self._oldq = q.currVal
+            self._olddphi = dphi.currVal
+            self._oldrwd = rwd.currVal
         
         return changepoints
      
@@ -303,9 +316,7 @@ class GPLCModel(LCModel):
         ln_ampout = self.getParam('ampout_gp')
         ln_tau = self.getParam('tau_gp')
         
-        print ln_ampin.currVal,ln_ampout.currVal,ln_tau.currVal
-    	
-    	ampin = np.exp(ln_ampin.currVal)
+        ampin = np.exp(ln_ampin.currVal)
         ampout = np.exp(ln_ampout.currVal)
         tau = np.exp(ln_tau.currVal)
        
@@ -463,7 +474,13 @@ if __name__ == "__main__":
     
     # Is starting position legal?
     if np.isinf(model.ln_prior()):
-        print 'Error: starting position violates priors'
+        print ('Error: starting position violates priors')
+        print ('Offending parameters are:')
+        for par in model.pars:
+            if not par.isValid:
+                print (par.name)
+        # running a verbose ln_prior checks invalid param combinations
+        model.ln_prior(verbose=True)
         sys.exit(-1)
       
     # How many parameters?  
@@ -508,12 +525,12 @@ if __name__ == "__main__":
         
         # Instantiate Ensemble sampler
         sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)
-		
+        
         # Burn-in
         print 'starting burn-in'
         # Run burn-in stage of mcmc using run_burnin function from mcmc_utils.py
         pos, prob, state = run_burnin(sampler,p0,nburn)
-		
+        
         # Run second burn-in stage, scattered around best fit of previous burn-in
         # DFM (emcee creator) reports this can help convergence in difficult cases
         print 'starting second burn-in'
@@ -525,15 +542,15 @@ if __name__ == "__main__":
         sampler.reset()
         print 'starting main mcmc chain'
         # Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")  
+        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod_2.txt")  
         '''
         stop parallelism
         pool.close()
         '''
         
-		#TODO: check if any values in the chain are INF, AND MASK OUT IF SO
+        #TODO: check if any values in the chain are INF, AND MASK OUT IF SO
         # LNPROB is in sampler.lnprobability and is shape (nwalkers, nsteps)
-		# sampler.chain has shape (nwalkers, nsteps, npars)
+        # sampler.chain has shape (nwalkers, nsteps, npars)
         
         # Create a chain (i.e. collect results from all walkers) using flatchain function
         # from mcmc_utils.py
@@ -547,9 +564,9 @@ if __name__ == "__main__":
             print "%s = %f +%f -%f" % (model.lookuptable[i],best,uplim-best,best-lolim)
             params.append(best)
         if neclipses == 1:
-        	fig = thumbPlot(chain,model.lookuptable)
-        	fig.savefig('cornerPlot.pdf')
-        	plt.close()
+            fig = thumbPlot(chain,model.lookuptable)
+            fig.savefig('cornerPlot_2.pdf')
+            plt.close()
         # Update model with best parameters
         model.pars = params
     
@@ -567,6 +584,17 @@ if __name__ == "__main__":
     gs = gridspec.GridSpec(2,1,height_ratios=[2,1])
     gs.update(hspace=0.0)
     seaborn.set()
+
+	# Required for fill-between region
+    if complex == 1:
+        a = 15
+    else:
+        a = 11
+        
+    if useGP == 1:
+        b = 6
+    else:
+        b = 3
 
     for iecl in range(neclipses):
         xp = x[iecl]
@@ -600,7 +628,78 @@ if __name__ == "__main__":
         if useGP:
             # Plot GP
             ax1.plot(xf,yf+fmu,color='r',linestyle='--',alpha=0.75)
+            
+            
+            if toFit:
+                # Plot fill-between region
+                # Read chain
+                if iecl == 0:
+                    wdFlux = chain[:,0]
+                    dFlux = chain[:,1]
+                    sFlux = chain[:,2]
+                    rsFlux = chain[:,3]
+                    q = chain[:,4]
+                    dphi = chain[:,5]
+                    rdisc = chain[:,6]
+                    ulimb = chain[:,7]
+                    rwd = chain[:,8]
+                    scale = chain[:,9]
+                    az = chain[:,10]
+                    fis = chain[:,11]
+                    dexp = chain[:,12]
+                    phi0 = chain[:,13]
+                    if complex:
+                        exp1 = chain[:,14]
+                        exp2 = chain[:,15]
+                        tilt = chain[:,16]
+                        yaw = chain[:,17]
+                else:
+                    i = a*iecl + b
+                    wdFlux = chain[:,i]
+                    dFlux = chain[:,i+1]
+                    sFlux = chain[:,i+2]
+                    rsFlux = chain[:,i+3]
+                    q = chain[:,4]
+                    dphi = chain[:,5]
+                    rdisc = chain[:,i+4]
+                    ulimb = chain[:,i+5]
+                    rwd = chain[:,8]
+                    scale = chain[:,i+6]
+                    az = chain[:,i+7]
+                    fis = chain[:,i+8]
+                    dexp = chain[:,i+9]
+                    phi0 = chain[:,i+10]
+                    if complex:
+                        exp1 = chain[:,i+11]
+                        exp2 = chain[:,i+12]
+                        tilt = chain[:,i+13]
+                        yaw = chain[:,i+14]
+       
+                # Create array of 100 random numbers
+                random_sample = np.random.randint(0,len(wdFlux),1000)
+                
+                lcs = []
         
+                for i in random_sample:
+                    pars = [wdFlux[i],dFlux[i],sFlux[i],rsFlux[i],q[i],dphi[i],rdisc[i], \
+                        ulimb[i],rwd[i],scale[i],az[i],fis[i],dexp[i],phi0[i]]
+                    if complex:
+                        pars.extend([exp1[i],exp2[i],tilt[i],yaw[i]])
+                
+                    CV = lfit.CV(pars)
+                
+                    xf_2 = np.linspace(xp.min(),xp.max(),1000)
+                    wf_2 = 0.5*np.mean(np.diff(xf_2))*np.ones_like(xf_2)
+                    yf_2 = CV.calcFlux(pars,xf_2,wf_2)
+                    lcs.append(yf_2)
+                
+                #print lcs
+                # To plot filled area    
+                lcs = np.array(lcs)
+                mu_2 = lcs.mean(axis=0)
+                std_2 = lcs.std(axis=0)
+                plt.fill_between(xf_2,mu_2+std_2,mu_2-std_2,color='b',alpha=0.2)
+            
         # Data
         ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.5)
         ax2 = plt.subplot(gs[1,0],sharex=ax1)
@@ -617,10 +716,10 @@ if __name__ == "__main__":
         ax2.yaxis.set_major_locator(MaxNLocator(4,prune='both'))
         ax1.tick_params(axis='x',labelbottom='off')
         
-    	for ax in plt.gcf().get_axes()[::2]:
-        	ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
+        for ax in plt.gcf().get_axes()[::2]:
+            ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
         
-    	# Save plot images
-    	plt.savefig(output_plots[iecl])
-    	plt.show()
+        # Save plot images
+        plt.savefig(output_plots[iecl])
+        plt.show()
      
