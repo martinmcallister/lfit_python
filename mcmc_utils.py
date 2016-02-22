@@ -13,9 +13,11 @@ try:
     # There are two python packages with conflicting names                      
     getattr(triangle,"corner")
 except AttributeError:
-    # We want the other package                                                
+    # We want the other package                                               
     import triangle_plot as triangle
-from progress import ProgressBar
+    
+# lightweight progress bar
+from tqdm import tqdm
 import scipy.integrate as intg
 import warnings
 from matplotlib import pyplot as plt
@@ -127,27 +129,31 @@ def scatterWalkers(pos0,percentScatter):
     scatter = np.array([np.random.normal(size=npars) for i in xrange(nwalkers)])
     return pos0 + percentScatter*pos0*scatter/100.0
 
-def run_burnin(sampler,startPos,nSteps,storechain=False):
-    iStep = 0    
-    bar = ProgressBar()
+def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
+    iStep = 0
+    if progress:
+        bar = tqdm(total=nSteps)
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,storechain=storechain):
-        bar.render(int(100*iStep/nSteps),'running Burn In')
         iStep += 1
+        if progress:
+            bar.update(iStep)
     return pos, prob, state
     
-def run_mcmc_save(sampler,startPos,nSteps,rState,file,**kwargs):
+def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
     '''runs and MCMC chain with emcee, and saves steps to a file'''
     #open chain save file
     if file:
         f = open(file,"w")
         f.close()
     iStep = 0
-    bar = ProgressBar()
+    if progress:
+        bar = tqdm(total=nSteps)
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,rstate0=rState,storechain=True,**kwargs):
         if file:
             f = open(file,"a")
-        bar.render(int(100*iStep/nSteps),'running MCMC')
         iStep += 1
+        if progress:
+            bar.update(iStep)
         for k in range(pos.shape[0]):
             # loop over all walkers and append to file
             thisPos = pos[k]
@@ -165,10 +171,10 @@ def run_ptmcmc_save(sampler,startPos,nSteps,file,**kwargs):
         f.close()
 
     iStep = 0    
-    bar = ProgressBar()
+    bar = tqdm(total=nSteps)
     for pos, prob, like in sampler.sample(startPos,iterations=nSteps,storechain=True,**kwargs):
-        bar.render(int(100*iStep/nSteps),'running MCMC')
         iStep += 1
+        bar.update(iStep)
         f = open(file,"a")
         # pos is shape (ntemps, nwalkers, npars)
         # prob is shape (ntemps, nwalkers)
