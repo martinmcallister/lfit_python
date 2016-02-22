@@ -182,9 +182,14 @@ def plotFluxes(fluxes,fluxes_err,mask,model):
     # central wavelengths
     wavelengths = np.array([355.7,482.5,626.1,767.2,909.7,507.5])
     
+    #indfluxes = [0.369,0.419,0.332,0.55,0.282,0.334,0.410,0.40]
+    #indflux_errs = [0.006,0.009,0.022,0.04,0.024,0.016,0.012,0.03]
+    #wavelengths2 = [507.5,507.5,767.2,482.5,626.1,482.5,626.1,482.5]
+    
     plt.errorbar(wavelengths[mask],model_fluxes[mask],xerr=None,yerr=None,fmt='o',ls='none',color='r',capsize=3)
     plt.errorbar(wavelengths[mask],fluxes[mask],xerr=None,yerr=fluxes_err[mask],fmt='o',ls='none',color='b',capsize=3)
-    plt.xlabel('Wavelength (nm)')
+    #plt.errorbar(wavelengths2,indfluxes,xerr=None,yerr=indflux_errs,fmt='o',ls='none',color='k',alpha=0.50,capsize=3)
+    #plt.xlabel('Wavelength (nm)')
     plt.ylabel('Flux (mJy)')
     plt.savefig('fluxPlot.pdf')
     plt.show()
@@ -221,10 +226,18 @@ def plotColors(mags):
     col1  = mags[0].mag - mags[1].mag
     col1e = numpy.sqrt(mags[0].magerr**2 + mags[1].magerr**2)
     col1l = mags[0].band + '-' + mags[1].band
-    # g-r 
-    col2  = mags[1].mag - mags[2].mag
-    col2e = numpy.sqrt(mags[1].magerr**2 + mags[2].magerr**2)
-    col2l = mags[1].band + '-' + mags[2].band
+    
+    if rband_used:
+        # g-r 
+        col2  = mags[1].mag - mags[2].mag
+        col2e = numpy.sqrt(mags[1].magerr**2 + mags[2].magerr**2)
+        col2l = mags[1].band + '-' + mags[2].band
+        
+    else:
+        # g-i 
+        col2  = mags[1].mag - mags[3].mag
+        col2e = numpy.sqrt(mags[1].magerr**2 + mags[3].magerr**2)
+        col2l = mags[1].band + '-' + mags[3].band
     
     print '%s = %f +/- %f' % (col1l,col1,col1e)
     print '%s = %f +/- %f' % (col2l,col2,col2e)
@@ -360,7 +373,7 @@ if __name__ == "__main__":
         b = 3
         
     # For each filter, fill lists with wd fluxes from mcmc chain, then append to main array
-    if uband_used:
+    '''if uband_used:
         uband = []
         uband_filters = uband_filters[0]
         for i in uband_filters:
@@ -373,15 +386,23 @@ if __name__ == "__main__":
                 uband.extend(wdflux)  
                 
         uband = np.array(uband)
-        # Need to calculate mean values and errors
-        uflux = np.mean(uband)
-        uflux_err = np.sqrt((np.std(uband))**2 + (np.mean(uflux)*syserr)**2)
+        # Need to calculate median values and errors
+        uflux = np.median(uband)
+        uflux_err = np.sqrt((np.std(uband))**2 + (uflux*syserr)**2)
         fluxes[0] = uflux
         fluxes_err[0] = uflux_err
         
         umag = Flux(uflux,uflux_err,'u')
-        mags[0] = umag
-        
+        mags[0] = umag'''
+    
+    uband_used = True
+    uflux = 0.389
+    uflux_err = np.sqrt(0.025**2 + (uflux*0.05)**2)
+    fluxes[0] = uflux
+    fluxes_err[0] = uflux_err
+    umag = Flux(uflux,uflux_err,'u')
+    mags[0] = umag
+       
     if gband_used:
         gband = []
         gband_filters = gband_filters[0]
@@ -395,13 +416,21 @@ if __name__ == "__main__":
                 gband.extend(wdflux)
       
         gband = np.array(gband)
-        gflux = np.mean(gband)
-        gflux_err = np.sqrt((np.std(gband))**2 + (np.mean(gflux)*syserr)**2)
+        gflux = np.median(gband)
+        gflux_err = np.sqrt((np.std(gband))**2 + (gflux*syserr)**2)
         fluxes[1] = gflux
         fluxes_err[1] = gflux_err
         
         gmag = Flux(gflux,gflux_err,'g')
         mags[1] = gmag
+    
+    '''gband_used = True
+    gflux = 0.488
+    gflux_err = np.sqrt(0.006**2 + (gflux*0.05)**2)
+    fluxes[1] = gflux
+    fluxes_err[1] = gflux_err
+    gmag = Flux(gflux,gflux_err,'g')
+    mags[1] = gmag'''
                 
     if rband_used:
         rband = []
@@ -416,13 +445,21 @@ if __name__ == "__main__":
                 rband.extend(wdflux)
                 
         rband = np.array(rband)
-        rflux = np.mean(rband)
-        rflux_err = np.sqrt((np.std(rband))**2 + (np.mean(rflux)*syserr)**2)
+        rflux = np.median(rband)
+        rflux_err = np.sqrt((np.std(rband))**2 + (rflux*syserr)**2)
         fluxes[2] = rflux
         fluxes_err[2] = rflux_err
         
         rmag = Flux(rflux,rflux_err,'r')
         mags[2] = rmag
+    
+    '''rband_used = True
+    rflux = 0.404
+    rflux_err = np.sqrt(0.008**2 + (rflux*0.05)**2)
+    fluxes[2] = rflux
+    fluxes_err[2] = rflux_err
+    rmag = Flux(rflux,rflux_err,'r')
+    mags[2] = rmag'''
         
     if iband_used:
         iband = []
@@ -436,13 +473,21 @@ if __name__ == "__main__":
                 wdflux = fchain[:,i]
                 iband.extend(wdflux)
         iband = np.array(iband)
-        iflux = np.mean(iband)
-        iflux_err = np.sqrt((np.std(iband)**2 + (np.mean(iflux)*syserr)**2))
+        iflux = np.median(iband)
+        iflux_err = np.sqrt((np.std(iband)**2 + (iflux*syserr)**2))
         fluxes[3] = iflux
         fluxes_err[3] = iflux_err
                 
         imag = Flux(iflux,iflux_err,'i')
         mags[3] = imag
+    
+    '''iband_used = True
+    iflux = 0.272
+    iflux_err = np.sqrt(0.006**2 + (iflux*0.05)**2)
+    fluxes[3] = iflux
+    fluxes_err[3] = iflux_err
+    imag = Flux(iflux,iflux_err,'i')
+    mags[3] = imag'''
               
     if zband_used:
         zband = []
@@ -457,14 +502,22 @@ if __name__ == "__main__":
                 zband.extend(wdflux)
                 
         zband = np.array(zband)
-        zflux = np.mean(zband)
-        zflux_err = np.sqrt((np.std(zband))**2 + (np.mean(zflux)*syserr)**2)
+        zflux = np.median(zband)
+        zflux_err = np.sqrt((np.std(zband))**2 + (zflux*syserr)**2)
         fluxes[4] = zflux
         fluxes_err[4] = zflux_err
         
         zmag = Flux(zflux,zflux_err,'z')
         mags[4] = zmag
-             
+    
+    '''zband_used = True
+    zflux = 0.33
+    zflux_err = np.sqrt(0.006**2 + (zflux*0.05)**2)
+    fluxes[4] = zflux
+    fluxes_err[4] = zflux_err
+    zmag = Flux(zflux,zflux_err,'z')
+    mags[4] = zmag'''   
+          
     if kg5band_used:
         kg5band = []
         kg5band_filters = kg5band_filters[0]
@@ -478,13 +531,21 @@ if __name__ == "__main__":
                 kg5band.extend(wdflux)
                 
         kg5band = np.array(kg5band)
-        kg5flux = np.mean(kg5band)
-        kg5flux_err = np.sqrt((np.std(kg5band))**2 + (np.mean(kg5flux)*syserr)**2)
+        kg5flux = np.median(kg5band)
+        kg5flux_err = np.sqrt((np.std(kg5band))**2 + (kg5flux*syserr)**2)
         fluxes[5] = kg5flux
         fluxes_err[5] = kg5flux_err
         
         kg5mag = Flux(kg5flux,kg5flux_err,'kg5')
         mags[5] = kg5mag
+    
+    '''kg5band_used = True
+    kg5flux = 0.398
+    kg5flux_err = np.sqrt(0.005**2 + (kg5flux*0.05)**2)
+    fluxes[5] = kg5flux
+    fluxes_err[5] = kg5flux_err
+    kg5mag = Flux(kg5flux,kg5flux_err,'kg5')
+    mags[5] = kg5mag'''
         
     # Arrays containing all fluxes and errors
     fluxes = np.array(fluxes) 
@@ -514,7 +575,7 @@ if __name__ == "__main__":
 
         #production
         sampler.reset()
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain.txt")  
+        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_wd.txt")  
         chain = flatchain(sampler.chain,npars,thin=thin)
     
         bestPars = []
