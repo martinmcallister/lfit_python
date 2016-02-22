@@ -35,6 +35,7 @@ if __name__ == "__main__":
     end = float(input_dict['phi_end'])
     complex   = bool(int(input_dict['complex']))
     useGP     = bool(int(input_dict['useGP']))
+    cornerplot = bool(int(input_dict['cornerplot']))
     
     chain = readchain_dask(file)
     nwalkers, nsteps, npars = chain.shape
@@ -81,11 +82,24 @@ if __name__ == "__main__":
         paramlist.extend(['exp1_0','exp2_0','tilt_0','yaw_0'])
     if useGP:
         paramlist.extend(['ampin_gp','ampout_gp','tau_gp'])
-        
-    # Create corner plot
-    fig = thumbPlot(chain_2,paramlist)
-    fig.savefig('cornerPlot.pdf')
-    plt.close()
+    
+    # params for second eclipse    
+    '''chain_2 = fchain[:,18:33]
+    paramlist = ['wdFlux_1','dFlux_1','sFlux_1','rsFlux_1','rdisc_1','ulimb_1','scale_1','az_1','fis_1','dexp_1','phi0_1']
+    if complex:
+        paramlist.extend(['exp1_1','exp2_1','tilt_1','yaw_1'])'''
+          
+    # params for second eclipse   
+    '''chain_2 = fchain[:,34:49]
+    paramlist = ['wdFlux_2','dFlux_2','sFlux_2','rsFlux_2','rdisc_2','ulimb_2','scale_2','az_2','fis_2','dexp_2','phi0_2']
+    if complex:
+        paramlist.extend(['exp1_2','exp2_2','tilt_2','yaw_2'])'''
+     
+    if cornerplot == 1:    
+        # Create corner plot
+        fig = thumbPlot(chain_2,paramlist)
+        fig.savefig('cornerPlot.pdf')
+        plt.close()
                  
     for iecl in range(neclipses):
         # Read chain file
