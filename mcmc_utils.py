@@ -109,6 +109,10 @@ class Param(object):
 	        isVar = True
 	    return 	cls(name, val, Prior(priorType,priorP1,priorP2), isVar)
 	
+	@property
+	def isValid(self):
+	    return np.isfinite( self.prior.ln_prob(self.currVal) )
+	    
 def fracWithin(pdf,val):
 	return pdf[pdf>=val].sum()
 
