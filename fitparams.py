@@ -35,18 +35,23 @@ def plotMult(x,parsList,total,label):
     total   /= total.sum()
     ymin = min(ymin,total.min())
     ymax = max(ymax,total.max())
-    cols = ['r','g','b']
-    for ifit, fit in enumerate(fitList):
-        axis.plot(x,fit,cols[ifit])
+    #cols = ['r','g','darkred','gray']
+    cols = ['r','g','b','gray','y','pink','orange','darkred']
+    i = 0
+    for fit in fitList:
+        axis.plot(x,fit,cols[i])
+        i += 1
     axis.plot(x,total,'k')
-    axis.text(0.95,0.8,label,transform=axis.transAxes,horizontalalignment='right')
+    axis.text(0.98,0.8,label,transform=axis.transAxes,horizontalalignment='right')
     axis.yaxis.set_ticklabels([])
+    axis.tick_params(axis='x', which='major', labelsize=6)
     plotMult.axindex += 1
 # add fig, axs objects to plotMult function for plot incrementing
 plotMult.fig, plotMult.axs = plt.subplots(5,2)
 plotMult.fig.delaxes(plotMult.axs[4,1])
 plt.subplots_adjust(wspace=0.08)
 plotMult.axindex = 0
+
     
 def plot(array,label,params):
     (y,bins) = numpy.histogram(array,bins=50,normed=True)
@@ -60,8 +65,9 @@ def plot(array,label,params):
     axis = plot.axs[rowIndex,colIndex]
     axis.plot(x,yFit,'k')
     axis.step(x,y,where='mid',color='k')
-    axis.text(0.95,0.8,label,transform=axis.transAxes,horizontalalignment='right')
+    axis.text(0.98,0.8,label,transform=axis.transAxes,horizontalalignment='right')
     axis.yaxis.set_ticklabels([])
+    axis.tick_params(axis='x', which='major', labelsize=6)
     plot.axindex += 1
 plot.fig, plot.axs = plt.subplots(5,2)
 plot.fig.delaxes(plot.axs[4,1])
@@ -157,31 +163,36 @@ if __name__ == "__main__":
             result = fitfunc(pars,x)
             getStatsPDF(x,result,param.shortString)
             plot(array,param.longString,fitSkewedGaussian(array))
+            plot.fig.savefig('pdf.pdf')
             # For calculation of log g
             if i == 1:
                 maxloc = result.argmax()
                 m = x[maxloc]
-                m_err = m - percentile(x,result,0.16)
+                m_poserr = m - percentile(x,result,0.84)
+                m_negerr = m - percentile(x,result,0.16)
             if i == 2:
                 maxloc = result.argmax()
                 r = x[maxloc]
-                r_err = r - percentile(x,result,0.16)
+                r_poserr = r - percentile(x,result,0.84)
+                r_negerr = r - percentile(x,result,0.16)
             i += 1
-        plt.close(plotMult.fig)
+        plt.close(plot.fig)
         
         logg = logg(m,r)
-        logg_err = 0.434*np.sqrt(((m_err/m)**2)+((2*r_err)/r)**2)
-        print "log g = %f +- %f" % (logg,logg_err)
-        
+        logg_poserr = 0.434*np.sqrt(((m_poserr/m)**2)+((2*r_poserr)/r)**2)
+        logg_negerr = 0.434*np.sqrt(((m_negerr/m)**2)+((2*r_negerr)/r)**2)
+        print "log g = %.8f + %.8f - %.8f" % (logg,logg_poserr,logg_negerr)
         
     else:
         dataList = []
-        colours = ['red','grn','blu']
         numSets = 0
         numSets = int(raw_input('How many datasets to combine? '))
+        #filters = ['r','g','i','KG5']
+        #filters = ['r','g','u','KG5']
+        filters = ['e1','e2','e3','e4','e5','e6','e7','e8']
         files = []
         for i in range(numSets):
-            files.append( raw_input('Give data file containing parameter samples for ' + colours[i] + ' data: ') )
+            files.append( raw_input('Give data file containing parameter samples for ' + filters[i] + ' data: ') )
 
         for i in range(numSets):
             dataList.append(numpy.loadtxt(files[i]))
@@ -197,25 +208,21 @@ if __name__ == "__main__":
                 else:
                     m = numpy.array(dataList[i][:,paramList[1].index],dtype='float64')
                     r = numpy.array(dataList[i][:,paramList[2].index],dtype='float64')
-                    array = logg(m,r)           
+                    array = logg(m,r)     
                 minX = min(minX,array.min())
                 maxX = max(maxX,array.max())
                 parsList.append(fitSkewedGaussian(array))
             x = numpy.linspace(minX,maxX,1000)
-            if numSets == 2:
-                result = fitfunc(parsList[0],x)*fitfunc(parsList[1],x)
-            else:
-                result = fitfunc(parsList[0],x)*fitfunc(parsList[1],x)*fitfunc(parsList[2],x)
-            if numSets == 2:
-                plotMult(x,[parsList[0],parsList[1]],result,param.longString)
-            else:
-                plotMult(x,[parsList[0],parsList[1],parsList[2]],result,param.longString)
+            result = 1
+            for i in range(numSets):
+                result *= fitfunc(parsList[i],x)
+                
+            plotMult(x,parsList[0:],result,param.longString)
+            plotMult.fig.savefig('pdf.pdf')
             getStatsPDF(x,result,param.shortString)
 
-
-
-        plt.close(plot.fig)
-    plt.show()
+        plt.close(plotMult.fig)
+    #plt.show()
 
 
 
