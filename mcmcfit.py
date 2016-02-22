@@ -47,9 +47,13 @@ def ln_prior_gp(params):
     
     lnp = 0.0
     
-    prior = Prior('uniform',-15,10)
+    prior = Prior('uniform',-3.005,-2.995)
     lnp += prior.ln_prob(lna)
-    prior = Prior('uniform',-7.97,-6.57) #flickering timescale 30s to 2 mins
+    
+    #flickering timescale 30s to 2 mins (for a typical orbital period of 100 mins)
+    #prior = Prior('uniform',-5.30,-3.91)
+    
+    prior = Prior('uniform',-5.565, -5.555) 
     lnp += prior.ln_prob(lntau)
     
     return lnp + ln_prior_base(params[2:])
@@ -59,19 +63,19 @@ def ln_prior_base(pars):
     lnp = 0.0
 
     #Wd flux
-    prior = Prior('uniform',0.001,0.5)
+    prior = Prior('uniform',0.001,2)
     lnp += prior.ln_prob(pars[0])
 
     #Disc flux
-    prior = Prior('uniform',0.001,0.5)
+    prior = Prior('uniform',0.001,2)
     lnp += prior.ln_prob(pars[1])
 
     #BS flux
-    prior = Prior('uniform',0.001,0.5)
+    prior = Prior('uniform',0.001,2)
     lnp += prior.ln_prob(pars[2])
 
     #Donor flux
-    prior = Prior('uniform',0.0,0.5)
+    prior = Prior('uniform',0.0,2)
     lnp += prior.ln_prob(pars[3])
 
     #Mass ratio
@@ -98,7 +102,7 @@ def ln_prior_base(pars):
         lnp += -np.inf
     
     #Limb darkening
-    prior = Prior('gauss',0.35,0.005)
+    prior = Prior('gauss',0.39,0.005)
     lnp += prior.ln_prob(pars[7])
 
     #Wd radius (XL1)
@@ -177,7 +181,7 @@ def createGP(params,phi):
     dphi, phiOff = params[7],params[15]
     
     k_out = a*GP.Matern32Kernel(tau)
-    k_in  = 0.001*a*GP.Matern32Kernel(tau)
+    k_in  = 0.01*a*GP.Matern32Kernel(tau)
     
     # Find location of all changepoints
     changepoints = []
@@ -221,10 +225,10 @@ def lnprob_gp(params, phi, width, y, e, cv):
         return -np.inf
     return lp + lnlike_gp(params, phi, width, y, e, cv)
 
-def fit_gp(initialGuess, phi, width, y, e, cv, mcmcPars=(100,300,300,500,6)):
+def fit_gp(initialGuess, phi, width, y, e, cv, mcmcPars=(80,5000,5000,500,6)):
     nwalkers, nBurn1, nBurn2, nProd, nThreads = mcmcPars
     ndim_gp = len(initialGuess)
-    pos = emcee.utils.sample_ball(initialGuess,0.01*initialGuess,size=nwalkers)
+    pos = emcee.utils.sample_ball(initialGuess,0.05*initialGuess,size=nwalkers)
     sampler_gp = emcee.EnsembleSampler(nwalkers, ndim_gp, lnprob_gp, args=(phi,width,y,e,cv), threads=nThreads)
 
     print("Running burn-in")
@@ -234,7 +238,7 @@ def fit_gp(initialGuess, phi, width, y, e, cv, mcmcPars=(100,300,300,500,6)):
     print("Running second burn-in")
     # choose the highest probability point in first Burn-In as starting point
     pos = pos[np.argmax(prob)]
-    pos = emcee.utils.sample_ball(pos,0.01*pos,size=nwalkers)
+    pos = emcee.utils.sample_ball(pos,0.05*pos,size=nwalkers)
     pos, prob, state = run_burnin(sampler_gp,pos,nBurn2)
     sampler_gp.reset()
 
@@ -308,21 +312,21 @@ def parseStartPars(file):
     
 if __name__ == "__main__":
 
-
-    #Input lightcurve data from txt file
+    # Command line arguments 
     import argparse
     parser = argparse.ArgumentParser(description='Fit CV lightcurves with lfit')
     parser.add_argument('file',action='store',help='input file (x,y,e)')
     parser.add_argument('parfile',action='store',help='starting parameters')
     parser.add_argument('-f','--fit',action='store_true',help='actually fit, otherwise just plot')
-    parser.add_argument('-nw','--nwalkers',action='store',help='number of walkers', type=int, default=100)
+    parser.add_argument('-nw','--nwalkers',action='store',help='number of walkers', type=int, default=80)
     parser.add_argument('-nt','--nthreads',action='store',help='number of threads', type=int, default=6)
     parser.add_argument('-nb','--nburn',action='store',help='number of burn steps', type=int, default=5000)
-    parser.add_argument('-np','--nprod',action='store',help='number of prod steps', type=int, default=5000)
+    parser.add_argument('-np','--nprod',action='store',help='number of prod steps', type=int, default=1000)
     args = parser.parse_args()
     file = args.file
     toFit = args.fit
 
+    # Input lightcurve data from txt file
     x,y,e = np.loadtxt(file,skiprows=16).T
     width = np.mean(np.diff(x))*np.ones_like(x)/2.
     
@@ -362,13 +366,22 @@ if __name__ == "__main__":
     # initialize a cv with these params
     myCV = lfit.CV(guessP[2:])
     
-    lnprior = ln_prior_gp(guessP)
-    lnlikelihood = lnlike_gp(guessP, x, width, y, e, myCV)
-    lnprob = lnprob_gp(guessP, x, width, y, e, myCV)
+    '''
+    BIZARRO WORLD!
+    Calling the lnprior,lnlikelihood andlnprob functions once outside of multiprocessing
+    causes multiprocessing calls to the same function to hang or segfault
+    when using numpy/scipy on OS X. This is a known bug when using mp
+    in combination with the BLAS library (cho_factor uses this).
+        
+    http://stackoverflow.com/questions/19705200/multiprocessing-with-numpy-makes-python-quit-unexpectedly-on-osx
+    '''
+    #lnprior = ln_prior_gp(guessP)
+    #lnlikelihood = lnlike_gp(guessP, x, width, y, e, myCV)
+    #lnprob = lnprob_gp(guessP, x, width, y, e, myCV)
     
-    print "lnprior =      " ,lnprior
-    print "lnlikelihood = " ,lnlikelihood
-    print "lnprob =       " ,lnprob
+    #print "lnprior =      " ,lnprior
+    #print "lnlikelihood = " ,lnlikelihood
+    #print "lnprob =       " ,lnprob
 
     if toFit:
         npars = len(guessP)

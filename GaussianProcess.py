@@ -1,6 +1,8 @@
 from scipy.linalg import cho_factor, cho_solve
 import numpy as np
-        
+import copy
+import ctypes
+
 class Kernel(object):
     def __init__(self, pars, **kwargs):
         self.ndim = kwargs.get("ndim", 1)
@@ -85,8 +87,8 @@ class DrasticChangepointKernel(Kernel):
         for kernel in kernels:
             assert kernel.ndim == 1, "Only 1D Changepoint Kernels are supported"
         assert len(changepoints)+1 == len(kernels), "Must have one fewer changepoints than kernels"
-        self.kernels = kernels
-        self.changepoints = changepoints
+        self.kernels = copy.deepcopy(kernels)
+        self.changepoints = copy.deepcopy(changepoints)
         self.ndim = 1
         self.computed = False
         
@@ -95,7 +97,7 @@ class DrasticChangepointKernel(Kernel):
         self.computed = False
         assert x.ndim == 1, "Only 1D kernels are supported"
         assert len(errs) == len(x), "Length of error array must match 2nd dimension of x array"
-        
+
         num_points = len(errs)
         # diagonal part of covariance matrix (white noise terms)
         self.covar = errs*errs*np.eye(num_points)
@@ -108,14 +110,15 @@ class DrasticChangepointKernel(Kernel):
         # start indices and end indices for gram matrices
         startInds = np.insert(breaks,0,0)
         endInds   = np.append(breaks,num_points)
+        
     
         for xarr, kernel, startInd, endInd in zip(xarrs, self.kernels, startInds, endInds):
-    		# create deltaT array
-	     	deltaT = x[startInd:endInd]-x[startInd:endInd][:,np.newaxis]
-	    	covar = kernel._evaluate(deltaT,0) 
-	    	# insert gram matrix in correct place 
-	    	self.covar[startInd:endInd,startInd:endInd] += covar            
-            
+            # create deltaT array
+            deltaT = x[startInd:endInd]-x[startInd:endInd][:,np.newaxis]
+            covar = kernel._evaluate(deltaT,0) 
+            # insert gram matrix in correct place 
+            self.covar[startInd:endInd,startInd:endInd] += covar            
+
         self.factor, self.flag = cho_factor(self.covar)
         self.logdet = 2*np.sum(np.log(np.diag(self.factor)))
         self.computed = True
@@ -246,6 +249,26 @@ class GaussianProcess(object):
         mu,cov = self.predict(y,xp)
         return np.random.multivariate_normal(mu,cov,size)
 
+    def sample(self,xp,size=100):
+        '''
+        Draw samples from the prior distribution
+        
+        :param xp: ``(ntest, )`` or ``(ntest, ndim)``
+            The coordinates where the prior distribution should be computed
+        :param size: (optional)
+            The number of samples to draw.
+
+        :returns samples: ``(size, ntest)``
+            A list of predictions at coordinates given by ``xp``.     
+        '''
+        assert self.kernel.computed
+        xp = np.atleast_2d(xp)
+        assert (xp.shape[0] == self.kernel.ndim) or (xp.shape[0] == 1), "1st dimension of xp array must either match dimensions of kernel or be 1"
+
+        cov = self.kernel.get_matrix(xp,self._x)
+        mu = np.zeros_like(xp.ravel())
+        return np.random.multivariate_normal(mu,cov,size)
+            
 
 if __name__ == "__main__":
     import george

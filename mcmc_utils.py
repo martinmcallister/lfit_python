@@ -2,13 +2,18 @@ import numpy as np
 import scipy.signal as signal
 import scipy.optimize as opt
 import scipy.stats as stats
+import pandas as pd
+import dask.dataframe as dd
+import dask.array as da
+from dask.multiprocessing import get
+from dask.diagnostics import ProgressBar
 try:
     import triangle
-    # This triangle should have a method corner
-    # There are two python packages with conflicting names
+    # This triangle should have a method corner                                 
+    # There are two python packages with conflicting names                      
     getattr(triangle,"corner")
 except AttributeError:
-    # We want the other package
+    # We want the other package                                                
     import triangle_plot as triangle
 from progress import ProgressBar
 import scipy.integrate as intg
@@ -84,14 +89,15 @@ class Prior(object):
 class Param(object):
 	'''A Param needs a starting value, a current value, and a prior
 	and a flag to state whether is should vary'''
-	def __init__(self,startVal,prior,isVar=True):
+	def __init__(self,name,startVal,prior,isVar=True):
+		self.name     = name
 		self.startVal = startVal
 		self.prior    = prior
 		self.currVal  = startVal
 		self.isVar    = isVar
 		
 	@classmethod
-	def fromString(cls,parString):
+	def fromString(cls,name,parString):
 	    fields = parString.split()
 	    val = float(fields[0])
 	    priorType = fields[1].strip()
@@ -101,8 +107,12 @@ class Param(object):
 	        isVar = bool(fields[4])
 	    else:
 	        isVar = True
-	    return 	cls(val, Prior(priorType,priorP1,priorP2), isVar)
+	    return 	cls(name, val, Prior(priorType,priorP1,priorP2), isVar)
 	
+	@property
+	def isValid(self):
+	    return np.isfinite( self.prior.ln_prob(self.currVal) )
+	    
 def fracWithin(pdf,val):
 	return pdf[pdf>=val].sum()
 
@@ -118,7 +128,7 @@ def scatterWalkers(pos0,percentScatter):
     return pos0 + percentScatter*pos0*scatter/100.0
 
 def run_burnin(sampler,startPos,nSteps,storechain=False):
-    iStep = 0
+    iStep = 0    
     bar = ProgressBar()
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,storechain=storechain):
         bar.render(int(100*iStep/nSteps),'running Burn In')
@@ -180,7 +190,22 @@ def flatchain(chain,npars,nskip=0,thin=1):
     return chain[:,nskip::thin,:].reshape((-1,npars))
     
 def readchain(file,nskip=0,thin=1):
-    data = np.loadtxt(file)
+    #data = np.loadtxt(file)
+    data = pd.read_csv(file,header=None,compression=None,delim_whitespace=True)
+    data = np.array(data)
+    nwalkers=int(data[:,0].max()+1)
+    nprod = int(data.shape[0]/nwalkers)
+    npars = data.shape[1]-1 # first is walker ID, last is ln_prob
+    chain = np.reshape(data[:,1:],(nwalkers,nprod,npars))
+    return chain
+    
+def readchain_dask(file,nskip=0,thin=1):
+    #data = np.loadtxt(file)
+    data = dd.io.read_csv(file,engine='c',header=None,compression=None,na_filter=False,delim_whitespace=True)
+    #with ProgressBar():
+    data = data.compute(get=get)
+    print 'got here'
+    data = np.array(data)
     nwalkers=int(data[:,0].max()+1)
     nprod = int(data.shape[0]/nwalkers)
     npars = data.shape[1]-1 # first is walker ID, last is ln_prob
