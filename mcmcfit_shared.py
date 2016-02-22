@@ -113,7 +113,7 @@ class LCModel(Model):
             resids = (y[iecl] - self.calc(iecl,phi[iecl],thisWidth)) / e[iecl]
             # Check for bugs in model
             if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-                print warning.warn('model gave nan or inf answers')
+                warning.warn('model gave nan or inf answers')
                 return -np.inf
             retVal += np.sum(resids**2)
         return retVal
