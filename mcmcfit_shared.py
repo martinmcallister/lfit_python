@@ -139,7 +139,8 @@ class LCModel(Model):
             maxphi = roche.findphi(q.currVal,90.0)
             # dphi cannot be greater than (or within a certain tolerance of) maxphi
             if dphi.currVal > maxphi-tol:
-                print('Combination of q and dphi is invalid')
+            	if verbose:
+                	print('Combination of q and dphi is invalid')
                 retVal += -np.inf
             else:
                 retVal += dphi.prior.ln_prob(dphi.currVal)
