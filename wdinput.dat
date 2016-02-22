@@ -1,0 +1,32 @@
+# MCMC run parameters
+nburn    = 5000 # number of steps to use in burn-in phase
+nprod    = 1000 # number of steps to use in production phase
+nwalkers = 32   # must be even multiple of npars (npars = 4)
+nthread  = 6   # number of CPU threads to use
+scatter  = 0.05 # fractional scatter to add to starting ball of parameters
+thin     = 1  # amount to thin MCMC chain by before calculating best fit
+fit      = 0 # actually fit (1), or just plot model as specified (0)
+
+# all model parameters have both a starting value and a prior
+# priors are specified by type, val1, val2
+# type can be one of 'gauss', 'uniform' or 'log_uniform'
+# if type = 'gauss', val1 and val2 represent mean and standard deviation of prior
+# if type = 'uniform' or 'log_uniform', val1 and val2 represent the limits of prior
+teff  = 13500 uniform 6000 90000  # WD temp
+logg  = 7.5   uniform 7.01 8.99   # log g (model grid runs from 7 to 9, so within this as minimum)
+#logg = 8.55    gauss 8.55 0.02
+dist  = 500   uniform 50 5000 # distance in PC
+ebv   = 0.0009  uniform 0.0 0.121 # redenning E(B-V). If you don't know anything, should range from 0 to max galactic extinction at this position
+
+# DATA
+syserr = 0.05 # systematic error to add to all fluxes (in %)
+
+uflux = 0.0333 
+uferr = 0.002
+
+gflux = 0.0465 
+gferr = 0.0007
+
+rflux = 0.0381  
+rferr = 0.0009
+redband = r
