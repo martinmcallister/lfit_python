@@ -37,30 +37,23 @@ class wdModel(MutableSequence):
     @property
     def npars(self):
         return len(self.data)    
-
+        
 def parseInput(file):
     ''' reads in a file of key = value entries and returns a dictionary'''
+    # Reads in input file and splits it into lines
     blob = np.loadtxt(file,dtype='string',delimiter='\n')
     input_dict = {}
     for line in blob:
+        # Each line is then split at the equals sign
         k,v = line.split('=')
         input_dict[k.strip()] = v.strip()
     return input_dict
-
-def parseParam(parString):
-    '''given a string defining a parameter, breaks it up and returns a Param object'''
-    fields = parString.split()
-    val = float(fields[0])
-    priorType = fields[1].strip()
-    priorP1   = float(fields[2])
-    priorP2   = float(fields[3])
-    return Param(val, Prior(priorType, priorP1, priorP2))
-	
-def model(thisModel,rind=6):
+    
+def model(thisModel,mask):
     t, g, d, ebv = thisModel
     
     # load bergeron models
-    data = np.loadtxt('Bergeron/da2.ugriz')
+    data = np.loadtxt('Bergeron/da_ugrizkg5.txt')
 
     teffs = np.unique(data[:,0])
     loggs = np.unique(data[:,1])
@@ -73,8 +66,8 @@ def model(thisModel,rind=6):
     assert g <= loggs.max()
         
     abs_mags = []
-    # u data in col 4, g in col 5, red in rind (r=6, i=7, z=8)
-    for col_indx in [4,5,rind]:
+    # u data in col 4, g in 5, r in 6, i in 7, z in 8, kg5 in 9
+    for col_indx in range(4,10):
         z = data[:,col_indx]
         z = z.reshape((nlogg,nteff))
         # cubic bivariate spline interpolation
@@ -82,15 +75,15 @@ def model(thisModel,rind=6):
         abs_mags.append(func(g,t)[0,0])
     abs_mags = np.array(abs_mags)
     
-    # A_x/E(B-V) extinction from Cardelli (1998)
-    r_ext_arr = [2.751, 2.086, 1.479]
-    r_ext     = r_ext_arr[rind-6]
-    ext       = ebv*np.array([5.155,3.793,r_ext])
+    # A_x/E(B-V) extinction from Cardelli (1989)
+    # Where are these values from?? (KG5 estimated)
+    
+    ext       = ebv*np.array([5.155,3.793,2.751,2.086,1.479,3.5])
     dmod      = 5.0*np.log10(d/10.0)
     app_red_mags = abs_mags + ext + dmod
     
     #return app_red_mags
-    return 3631e3*10**(-0.4*app_red_mags)
+    return 3631e3*10**(-0.4*app_red_mags[mask])
 
 def ln_prior(thisModel):
     lnp = 0.0
@@ -117,18 +110,19 @@ def ln_prior(thisModel):
     lnp += param.prior.ln_prob(param.currVal)    
     return lnp
     
-def chisq(thisModel,y,yerr,rind):
+def chisq(thisModel,y,e,mask):
+    m = model(thisModel,mask)
     try:
-        resids = (y - model(thisModel,rind))/ yerr
+        resids = (y[mask] - m)/ e[mask]
         return np.sum(resids*resids)
     except:
         return np.inf
         
-def ln_likelihood(thisModel,y,yerr,rind):
-    errs = yerr
-    return -0.5*(np.sum( np.log( 2.0*np.pi*errs**2 ) ) + chisq(thisModel,y,errs,rind))
+def ln_likelihood(thisModel,y,e,mask):
+    errs = e[mask]
+    return -0.5*(np.sum( np.log( 2.0*np.pi*errs**2 ) ) + chisq(thisModel,y,e,mask))
     
-def ln_prob(pars,thisModel,y,yerr,rind):
+def ln_prob(pars,thisModel,y,e,mask):
 
     # first we update the model to use the pars suggested by the MCMC chain
     for i in range(thisModel.npars):
@@ -137,10 +131,10 @@ def ln_prob(pars,thisModel,y,yerr,rind):
     # now calculate log prob
     lnp = ln_prior(thisModel)
     if np.isfinite(lnp):
-        return lnp + ln_likelihood(thisModel,y,yerr,rind)
+        return lnp + ln_likelihood(thisModel,y,e,mask)
     else:
         return lnp
-   
+        
 class Flux(object):
     def __init__(self,val,err,band):
         self.val = val
@@ -149,16 +143,71 @@ class Flux(object):
         self.mag = 2.5*numpy.log10(3631000/self.val)
         self.magerr = 2.5*0.434*(self.err/self.val)
         
-def plotColors(colors):
+def plotFluxes(fluxes,fluxes_err,mask,model):
+
+    teff = model[0] 
+    logg = model[1]
+    d = model[2]
+    ebv = model[3] 
+    
     # load bergeron models
-    data = numpy.loadtxt('Bergeron/da2.ugriz')
+    data = numpy.loadtxt('Bergeron/da_ugrizkg5.txt')
+    
+    teffs = np.unique(data[:,0])
+    loggs = np.unique(data[:,1])
+    
+    nteff = len(teffs)
+    nlogg = len(loggs)
+
+    abs_mags = []
+    # u data in col 4, g in 5, r in 6, i in 7, z in 8, kg5 in 9
+    for col_indx in range(4,10):
+        z = data[:,col_indx]
+        z = z.reshape((nlogg,nteff))
+        # cubic bivariate spline interpolation
+        func = interp.RectBivariateSpline(loggs,teffs,z,kx=3,ky=3)
+        abs_mags.append(func(logg,teff)[0,0])
+    abs_mags = np.array(abs_mags)
+    
+    # A_x/E(B-V) extinction from Cardelli (1989)
+    # Where are these values from?? (KG5 estimated)
+    
+    ext       = ebv*np.array([5.155,3.793,2.751,2.086,1.479,3.5])
+    dmod      = 5.0*np.log10(d/10.0)
+    app_red_mags = abs_mags + ext + dmod
+    
+    # calculate fluxes from model magnitudes
+    model_fluxes = 3631e3*10**(-0.4*app_red_mags)
+    
+    # central wavelengths
+    wavelengths = np.array([355.7,482.5,626.1,767.2,909.7,507.5])
+    
+    #indfluxes = [0.369,0.419,0.332,0.55,0.282,0.334,0.410,0.40]
+    #indflux_errs = [0.006,0.009,0.022,0.04,0.024,0.016,0.012,0.03]
+    #wavelengths2 = [507.5,507.5,767.2,482.5,626.1,482.5,626.1,482.5]
+    
+    plt.errorbar(wavelengths[mask],model_fluxes[mask],xerr=None,yerr=None,fmt='o',ls='none',color='r',capsize=3)
+    plt.errorbar(wavelengths[mask],fluxes[mask],xerr=None,yerr=fluxes_err[mask],fmt='o',ls='none',color='b',capsize=3)
+    #plt.errorbar(wavelengths2,indfluxes,xerr=None,yerr=indflux_errs,fmt='o',ls='none',color='k',alpha=0.50,capsize=3)
+    #plt.xlabel('Wavelength (nm)')
+    plt.ylabel('Flux (mJy)')
+    plt.savefig('fluxPlot.pdf')
+    plt.show()
+
+def plotColors(mags):
+
+    # load bergeron models
+    data = numpy.loadtxt('Bergeron/da_ugrizkg5.txt')
 
     # bergeron model magnitudes
     umags = data[:,4]
     gmags = data[:,5]
-    redindex =  6 + ['r','i','z'].index(colors[2].band)
-    rmags = data[:,redindex]
-    # calculate colours    
+    rmags = data[:,6]
+    imags = data[:,7]
+    zmags = data[:,8]
+    kg5mags = data[:,9]
+    
+    # calculate colours   
     ug = umags-gmags
     gr = gmags-rmags
 
@@ -172,35 +221,44 @@ def plotColors(colors):
     gr = gr.reshape((nlogg,nteff))
     
     # DATA!
+    # If u band data available, chances are g and r data available too
     # u-g
-    col1  = colors[0].mag - colors[1].mag
-    col1e = numpy.sqrt(colors[0].magerr**2 + colors[1].magerr**2)
-    col1l = colors[0].band + '-' + colors[1].band
-    # g-r (usually)
-    col2  = colors[1].mag - colors[2].mag
-    col2e = numpy.sqrt(colors[1].magerr**2 + colors[2].magerr**2)
-    col2l = colors[1].band + '-' + colors[2].band
+    col1  = mags[0].mag - mags[1].mag
+    col1e = numpy.sqrt(mags[0].magerr**2 + mags[1].magerr**2)
+    col1l = mags[0].band + '-' + mags[1].band
+    
+    if rband_used:
+        # g-r 
+        col2  = mags[1].mag - mags[2].mag
+        col2e = numpy.sqrt(mags[1].magerr**2 + mags[2].magerr**2)
+        col2l = mags[1].band + '-' + mags[2].band
+        
+    else:
+        # g-i 
+        col2  = mags[1].mag - mags[3].mag
+        col2e = numpy.sqrt(mags[1].magerr**2 + mags[3].magerr**2)
+        col2l = mags[1].band + '-' + mags[3].band
     
     print '%s = %f +/- %f' % (col1l,col1,col1e)
     print '%s = %f +/- %f' % (col2l,col2,col2e)
 
     # now plot everthing
-    for ig in range(len(logg)):
-        plt.plot(ug[ig,:],gr[ig,:],'k-')
+    for a in range(len(logg)):
+        plt.plot(ug[a,:],gr[a,:],'k-')
         
         
-    for it in range(0,len(teff),4):
-        plt.plot(ug[:,it],gr[:,it],'r--')
+    for a in range(0,len(teff),4):
+        plt.plot(ug[:,a],gr[:,a],'r--')
         
     # annotate for log g
-    xa = ug[0,nteff/3]+0.03
-    ya = gr[0,nteff/3]-0.02
-    t = plt.annotate('log g = 7.0',xy=(xa,ya),color='k',horizontalalignment='center', verticalalignment='center',size='small')
-    t.set_rotation(30.0)
-    xa = ug[-1,nteff/3]-0.05
-    ya = gr[-1,nteff/3]+0.0
-    t = plt.annotate('log g = 9.0',xy=(xa,ya),color='k',horizontalalignment='center', verticalalignment='center',size='small')
-    t.set_rotation(45.0)
+    #xa = ug[0,nteff/3]+0.03
+    #ya = gr[0,nteff/3]-0.02
+    #t = plt.annotate('log g = 7.0',xy=(xa,ya),color='k',horizontalalignment='center', verticalalignment='center',size='small')
+    #t.set_rotation(30.0)
+    #xa = ug[-1,nteff/3]-0.05
+    #ya = gr[-1,nteff/3]+0.0
+    #t = plt.annotate('log g = 9.0',xy=(xa,ya),color='k',horizontalalignment='center', verticalalignment='center',size='small')
+    #t.set_rotation(45.0)
     
     # annotate for teff
     xa = ug[0,4] + 0.03
@@ -228,18 +286,25 @@ def plotColors(colors):
     plt.errorbar(col1,col2,xerr=col1e,yerr=col2e,fmt='o',ls='none',color='r',capsize=3)
     plt.xlabel(col1l)
     plt.ylabel(col2l)
+    plt.xlim([-0.5,1])
+    plt.ylim([-0.5,0.5])
     plt.savefig('colorPlot.pdf')
-    
+    plt.show()
+        
 if __name__ == "__main__":
     warnings.simplefilter("ignore")
     
+    # Allows input file to be passed to code from argument line
     import argparse
     parser = argparse.ArgumentParser(description='Fit WD Fluxes')
     parser.add_argument('file',action='store',help="input file")
     
     args = parser.parse_args()
     
+    # Use parseInput function to read data from input file
     input_dict = parseInput(args.file)
+    
+    # Read information about mcmc, priors, neclipses, sys err
     nburn    = int( input_dict['nburn'] )
     nprod    = int( input_dict['nprod'] )
     nthread  = int( input_dict['nthread'] )
@@ -247,48 +312,262 @@ if __name__ == "__main__":
     scatter  = float( input_dict['scatter'] )
     thin     = int( input_dict['thin'] )
     toFit    = int( input_dict['fit'] )
-	    
-    um  = float(input_dict['uflux'])    
-    ume = float(input_dict['uferr'])    
-    gm  = float(input_dict['gflux'])    
-    gme = float(input_dict['gferr'])    
-    rm  = float(input_dict['rflux'])    
-    rme = float(input_dict['rferr'])    
-    redband = input_dict['redband']
-    redindex = 6
-    if redband in ['r','i','z']:
-        redindex = 6 + ['r','i','z'].index(redband)
-    syserr = float(input_dict['syserr'])
-    print 'red band = %s with index %d' % (redband,redindex)
-    
-    y = np.array([um,gm,rm])
-    e = np.array([ume,gme,rme])
-    # add systematic error
-    print 'before sys = ', e
-    e = np.sqrt(e**2 + (syserr*y)**2)
-    print 'after sys = ', e
-
-    # add sys errors to ume
-    ume, gme, rme = e
-    
     teff = Param.fromString('teff', input_dict['teff'] )
     logg = Param.fromString('logg', input_dict['logg'] )
     dist = Param.fromString('dist', input_dict['dist'] )
     ebv = Param.fromString('ebv', input_dict['ebv'] )
-    #teff = parseParam( input_dict['teff'] )
-    #logg = parseParam( input_dict['logg'] )
-    #dist = parseParam( input_dict['dist'] )
-    #ebv = parseParam( input_dict['ebv'] )
-
+    syserr = float( input_dict['syserr'] )
+    neclipses = int( input_dict['neclipses'] )
+    complex   = int( input_dict['complex'] )
+    useGP     = int( input_dict['useGP'] )
+    
+    # Add in filters used
+    filters = []
+    for ecl in range(0,neclipses):
+        filters.append(input_dict['fil_{0}'.format(ecl)])
+    filters = np.array(filters)
+    print filters
+        
+    # Load in chain file
+    file = input_dict['chain']
+    #chain = readchain(file)
+    chain = readchain_dask(file)
+    nwalkers, nsteps, npars = chain.shape
+    fchain = flatchain(chain,npars,thin=thin)
+    
+    # Create array of indexes of same filter type
+    uband_filters = np.where(filters == 'u')
+    gband_filters = np.where(filters == 'g')
+    rband_filters = np.where(filters == 'r')
+    iband_filters = np.where(filters == 'i')
+    zband_filters = np.where(filters == 'z')
+    kg5band_filters = np.where(filters == 'kg5')
+    
+    # Which filter bands are used?
+    uband_used = False
+    gband_used = False
+    rband_used = False
+    iband_used = False
+    zband_used = False
+    kg5band_used = False
+    if len(uband_filters[0] > 0): uband_used = True
+    if len(gband_filters[0] > 0): gband_used = True
+    if len(rband_filters[0] > 0): rband_used = True
+    if len(iband_filters[0] > 0): iband_used = True
+    if len(zband_filters[0] > 0): zband_used = True
+    if len(kg5band_filters[0] > 0): kg5band_used = True
+    
+    # Create arrays to be filled with all wd fluxes and mags
+    fluxes = [0,0,0,0,0,0]
+    fluxes_err = [0,0,0,0,0,0]
+    mags = [0,0,0,0,0,0]
+    
+    if complex == 1:
+        a = 15
+    else:
+        a = 11
+        
+    if useGP == 1:
+        b = 6
+    else:
+        b = 3
+        
+    # For each filter, fill lists with wd fluxes from mcmc chain, then append to main array
+    '''if uband_used:
+        uband = []
+        uband_filters = uband_filters[0]
+        for i in uband_filters:
+            if i == 0:
+                wdflux = fchain[:,i]
+                uband.extend(wdflux)
+            else: 
+                i = a*i + b
+                wdflux = fchain[:,i]
+                uband.extend(wdflux)  
+                
+        uband = np.array(uband)
+        # Need to calculate median values and errors
+        uflux = np.median(uband)
+        uflux_err = np.sqrt((np.std(uband))**2 + (uflux*syserr)**2)
+        fluxes[0] = uflux
+        fluxes_err[0] = uflux_err
+        
+        umag = Flux(uflux,uflux_err,'u')
+        mags[0] = umag'''
+    
+    uband_used = True
+    uflux = 0.389
+    uflux_err = np.sqrt(0.025**2 + (uflux*0.05)**2)
+    fluxes[0] = uflux
+    fluxes_err[0] = uflux_err
+    umag = Flux(uflux,uflux_err,'u')
+    mags[0] = umag
+       
+    if gband_used:
+        gband = []
+        gband_filters = gband_filters[0]
+        for i in gband_filters:
+            if i == 0:
+                wdflux = fchain[:,i]
+                gband.extend(wdflux)
+            else: 
+                i = a*i + b
+                wdflux = fchain[:,i]
+                gband.extend(wdflux)
+      
+        gband = np.array(gband)
+        gflux = np.median(gband)
+        gflux_err = np.sqrt((np.std(gband))**2 + (gflux*syserr)**2)
+        fluxes[1] = gflux
+        fluxes_err[1] = gflux_err
+        
+        gmag = Flux(gflux,gflux_err,'g')
+        mags[1] = gmag
+    
+    '''gband_used = True
+    gflux = 0.488
+    gflux_err = np.sqrt(0.006**2 + (gflux*0.05)**2)
+    fluxes[1] = gflux
+    fluxes_err[1] = gflux_err
+    gmag = Flux(gflux,gflux_err,'g')
+    mags[1] = gmag'''
+                
+    if rband_used:
+        rband = []
+        rband_filters = rband_filters[0]
+        for i in rband_filters:
+            if i == 0:
+                wdflux = fchain[:,i]
+                rband.extend(wdflux)
+            else: 
+                i = a*i + b
+                wdflux = fchain[:,i]
+                rband.extend(wdflux)
+                
+        rband = np.array(rband)
+        rflux = np.median(rband)
+        rflux_err = np.sqrt((np.std(rband))**2 + (rflux*syserr)**2)
+        fluxes[2] = rflux
+        fluxes_err[2] = rflux_err
+        
+        rmag = Flux(rflux,rflux_err,'r')
+        mags[2] = rmag
+    
+    '''rband_used = True
+    rflux = 0.404
+    rflux_err = np.sqrt(0.008**2 + (rflux*0.05)**2)
+    fluxes[2] = rflux
+    fluxes_err[2] = rflux_err
+    rmag = Flux(rflux,rflux_err,'r')
+    mags[2] = rmag'''
+        
+    if iband_used:
+        iband = []
+        iband_filters = iband_filters[0]
+        for i in iband_filters:
+            if i == 0:
+                wdflux = fchain[:,i]
+                iband.extend(wdflux)
+            else: 
+                i = a*i + b
+                wdflux = fchain[:,i]
+                iband.extend(wdflux)
+        iband = np.array(iband)
+        iflux = np.median(iband)
+        iflux_err = np.sqrt((np.std(iband)**2 + (iflux*syserr)**2))
+        fluxes[3] = iflux
+        fluxes_err[3] = iflux_err
+                
+        imag = Flux(iflux,iflux_err,'i')
+        mags[3] = imag
+    
+    '''iband_used = True
+    iflux = 0.272
+    iflux_err = np.sqrt(0.006**2 + (iflux*0.05)**2)
+    fluxes[3] = iflux
+    fluxes_err[3] = iflux_err
+    imag = Flux(iflux,iflux_err,'i')
+    mags[3] = imag'''
+              
+    if zband_used:
+        zband = []
+        zband_filters = zband_filters[0]
+        for i in zband_filters:
+            if i == 0:
+                wdflux = fchain[:,i]
+                zband.extend(wdflux)
+            else: 
+                i = a*i + b
+                wdflux = fchain[:,i]
+                zband.extend(wdflux)
+                
+        zband = np.array(zband)
+        zflux = np.median(zband)
+        zflux_err = np.sqrt((np.std(zband))**2 + (zflux*syserr)**2)
+        fluxes[4] = zflux
+        fluxes_err[4] = zflux_err
+        
+        zmag = Flux(zflux,zflux_err,'z')
+        mags[4] = zmag
+    
+    '''zband_used = True
+    zflux = 0.33
+    zflux_err = np.sqrt(0.006**2 + (zflux*0.05)**2)
+    fluxes[4] = zflux
+    fluxes_err[4] = zflux_err
+    zmag = Flux(zflux,zflux_err,'z')
+    mags[4] = zmag'''   
+          
+    if kg5band_used:
+        kg5band = []
+        kg5band_filters = kg5band_filters[0]
+        for i in kg5band_filters:
+            if i == 0:
+                wdflux = fchain[:,i]
+                kg5band.extend(wdflux)
+            else: 
+                i = a*i + b
+                wdflux = fchain[:,i]
+                kg5band.extend(wdflux)
+                
+        kg5band = np.array(kg5band)
+        kg5flux = np.median(kg5band)
+        kg5flux_err = np.sqrt((np.std(kg5band))**2 + (kg5flux*syserr)**2)
+        fluxes[5] = kg5flux
+        fluxes_err[5] = kg5flux_err
+        
+        kg5mag = Flux(kg5flux,kg5flux_err,'kg5')
+        mags[5] = kg5mag
+    
+    '''kg5band_used = True
+    kg5flux = 0.398
+    kg5flux_err = np.sqrt(0.005**2 + (kg5flux*0.05)**2)
+    fluxes[5] = kg5flux
+    fluxes_err[5] = kg5flux_err
+    kg5mag = Flux(kg5flux,kg5flux_err,'kg5')
+    mags[5] = kg5mag'''
+        
+    # Arrays containing all fluxes and errors
+    fluxes = np.array(fluxes) 
+    fluxes_err = np.array(fluxes_err)
+    
+    y = fluxes
+    e = fluxes_err
+    
+    # Create mask to discard any filters that are not used
+    mask = np.array([uband_used,gband_used,rband_used,iband_used,zband_used,kg5band_used])
+    
+    print mask
     myModel = wdModel(teff,logg,dist,ebv)
     
     npars = myModel.npars
+            
     if toFit:
         guessP = np.array([par for par in myModel])
         nameList = ['Teff','log g','d','E(B-V)']
         
         p0 = emcee.utils.sample_ball(guessP,scatter*guessP,size=nwalkers)
-        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[myModel,y,e,redindex],threads=nthread)
+        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[myModel,y,e,mask],threads=nthread)
     
         #burnIn
         pos, prob, state = run_burnin(sampler,p0,nburn)
@@ -296,7 +575,7 @@ if __name__ == "__main__":
 
         #production
         sampler.reset()
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain.txt")  
+        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_wd.txt")  
         chain = flatchain(sampler.chain,npars,thin=thin)
     
         bestPars = []
@@ -313,8 +592,13 @@ if __name__ == "__main__":
     else:
         bestPars = [par for par in myModel]
     
-    u = Flux(um,ume,'u')
-    g = Flux(gm,gme,'g')
-    r = Flux(rm,rme,redband)
-    observed_colors = [u,g,r]
-    plotColors(observed_colors)
+    # Plot color-color plot
+    if mask[0]:
+        plotColors(mags)
+        
+    # Plot measured and model fluxes
+    plotFluxes(fluxes,fluxes_err,mask,bestPars)
+        
+    
+    
+    
