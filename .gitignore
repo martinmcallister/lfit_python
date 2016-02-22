@@ -8,3 +8,12 @@ Output/**
 Results/**
 *.dat
 !input.dat
+Benchmarking.py
+chain_wd.txt
+fudgeChains.py
+gfit.in
+model.txt
+mp_test.py
+pickle.dump
+python_out.txt
+testBug.py
