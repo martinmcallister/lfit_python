@@ -5,3 +5,6 @@
 data/**
 gp/**
 Output/**
+Results/**
+*.dat
+!input.dat
