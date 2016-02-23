@@ -209,7 +209,7 @@ def readchain_dask(file,nskip=0,thin=1):
     #data = np.loadtxt(file)
     data = dd.io.read_csv(file,engine='c',header=None,compression=None,na_filter=False,delim_whitespace=True)
     #with ProgressBar():
-    data = data.compute(get=get)
+    data = data.compute()
     data = np.array(data)
     nwalkers=int(data[:,0].max()+1)
     nprod = int(data.shape[0]/nwalkers)
