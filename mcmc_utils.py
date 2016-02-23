@@ -5,8 +5,8 @@ import scipy.stats as stats
 import pandas as pd
 import dask.dataframe as dd
 import dask.array as da
-from dask.multiprocessing import get
-from dask.diagnostics import ProgressBar
+#from dask.multiprocessing import get
+#from dask.diagnostics import ProgressBar
 try:
     import triangle
     # This triangle should have a method corner                                 
@@ -132,7 +132,7 @@ def scatterWalkers(pos0,percentScatter):
 def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
     iStep = 0
     if progress:
-        bar = tqdm(total=nSteps)
+        bar = tqdm(total=(nSteps**2)/2)
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,storechain=storechain):
         iStep += 1
         if progress:
@@ -147,7 +147,7 @@ def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
         f.close()
     iStep = 0
     if progress:
-        bar = tqdm(total=nSteps)
+        bar = tqdm(total=(nSteps**2)/2)
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,rstate0=rState,storechain=True,**kwargs):
         if file:
             f = open(file,"a")
@@ -171,7 +171,7 @@ def run_ptmcmc_save(sampler,startPos,nSteps,file,**kwargs):
         f.close()
 
     iStep = 0    
-    bar = tqdm(total=nSteps)
+    bar = tqdm(total=(nSteps**2)/2)
     for pos, prob, like in sampler.sample(startPos,iterations=nSteps,storechain=True,**kwargs):
         iStep += 1
         bar.update(iStep)
