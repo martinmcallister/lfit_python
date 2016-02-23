@@ -132,11 +132,11 @@ def scatterWalkers(pos0,percentScatter):
 def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
     iStep = 0
     if progress:
-        bar = tqdm(total=(nSteps**2)/2)
+        bar = tqdm(total=nSteps)
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,storechain=storechain):
         iStep += 1
         if progress:
-            bar.update(iStep)
+            bar.update()
     return pos, prob, state
     
 def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
@@ -147,13 +147,13 @@ def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
         f.close()
     iStep = 0
     if progress:
-        bar = tqdm(total=(nSteps**2)/2)
+        bar = tqdm(total=nSteps)
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,rstate0=rState,storechain=True,**kwargs):
         if file:
             f = open(file,"a")
         iStep += 1
         if progress:
-            bar.update(iStep)
+            bar.update()
         for k in range(pos.shape[0]):
             # loop over all walkers and append to file
             thisPos = pos[k]
@@ -171,10 +171,10 @@ def run_ptmcmc_save(sampler,startPos,nSteps,file,**kwargs):
         f.close()
 
     iStep = 0    
-    bar = tqdm(total=(nSteps**2)/2)
+    bar = tqdm(total=nSteps)
     for pos, prob, like in sampler.sample(startPos,iterations=nSteps,storechain=True,**kwargs):
         iStep += 1
-        bar.update(iStep)
+        bar.update()
         f = open(file,"a")
         # pos is shape (ntemps, nwalkers, npars)
         # prob is shape (ntemps, nwalkers)
