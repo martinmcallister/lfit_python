@@ -5,8 +5,8 @@ import scipy.stats as stats
 import pandas as pd
 import dask.dataframe as dd
 import dask.array as da
-from dask.multiprocessing import get
-from dask.diagnostics import ProgressBar
+#from dask.multiprocessing import get
+#from dask.diagnostics import ProgressBar
 try:
     import triangle
     # This triangle should have a method corner                                 
@@ -136,7 +136,7 @@ def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
     for pos, prob, state in sampler.sample(startPos,iterations=nSteps,storechain=storechain):
         iStep += 1
         if progress:
-            bar.update(iStep)
+            bar.update()
     return pos, prob, state
     
 def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
@@ -153,7 +153,7 @@ def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
             f = open(file,"a")
         iStep += 1
         if progress:
-            bar.update(iStep)
+            bar.update()
         for k in range(pos.shape[0]):
             # loop over all walkers and append to file
             thisPos = pos[k]
@@ -174,7 +174,7 @@ def run_ptmcmc_save(sampler,startPos,nSteps,file,**kwargs):
     bar = tqdm(total=nSteps)
     for pos, prob, like in sampler.sample(startPos,iterations=nSteps,storechain=True,**kwargs):
         iStep += 1
-        bar.update(iStep)
+        bar.update()
         f = open(file,"a")
         # pos is shape (ntemps, nwalkers, npars)
         # prob is shape (ntemps, nwalkers)
@@ -209,7 +209,7 @@ def readchain_dask(file,nskip=0,thin=1):
     #data = np.loadtxt(file)
     data = dd.io.read_csv(file,engine='c',header=None,compression=None,na_filter=False,delim_whitespace=True)
     #with ProgressBar():
-    data = data.compute(get=get)
+    data = data.compute()
     data = np.array(data)
     nwalkers=int(data[:,0].max()+1)
     nprod = int(data.shape[0]/nwalkers)
