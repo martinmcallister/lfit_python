@@ -526,7 +526,6 @@ if __name__ == "__main__":
         # are valid
         p0 = initialise_walkers(p0,scatter,nwalkers,ln_prior)
         
-        	
         '''
         print 'probabilities of walker positions: '
         for i, par in enumerate(p0):
@@ -545,14 +544,14 @@ if __name__ == "__main__":
         # DFM (emcee creator) reports this can help convergence in difficult cases
         print('starting second burn-in')
         p0 = pos[np.argmax(prob)]
-        p0 = emcee.utils.sample_ball(p0,scatter*p0,size=nwalkers)
+        p0 = initialise_walkers(p0,scatter,nwalkers,ln_prior)
         pos, prob, state = run_burnin(sampler,p0,nburn)
 
         #Production
         sampler.reset()
         print('starting main mcmc chain')
         # Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod_2.txt")  
+        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")  
         '''
         stop parallelism
         pool.close()

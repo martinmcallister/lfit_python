@@ -1,7 +1,7 @@
 # MCMC run parameters
-nburn    = 400 # number of steps to use in burn-in phase
-nprod    = 200 # number of steps to use in production phase
-nwalkers = 40   # must be even multiple of npars (npars = 4)
+nburn    = 100 # number of steps to use in burn-in phase
+nprod    = 100 # number of steps to use in production phase
+nwalkers = 200   # must be even multiple of npars (npars = 4)
 nthread  = 6   # number of CPU threads to use
 scatter  = 0.05 # fractional scatter to add to starting ball of parameters
 thin     = 1 # amount to thin MCMC chain by before calculating best fit
@@ -14,7 +14,7 @@ fit      = 1 # actually fit (1), or just plot model as specified (0)
 # if type = 'uniform' or 'log_uniform', val1 and val2 represent the limits of prior
 teff  = 13500 uniform 5000 90000.0  # WD temp
 #logg  = 7.5   uniform 7.01 9.49   # log g (model grid runs from 7 to 9p.5, so within this as minimum)
-logg = 8.318    gauss 8.318 0.015
+logg = 8.620    gauss 8.620 0.020
 dist  = 500   uniform 20 5000 # distance in PC
 ebv   = 0.0009  uniform 0.0 0.121 # redenning E(B-V). If you don't know anything, should range from 0 to max galactic extinction at this position
 
@@ -26,10 +26,10 @@ ebv   = 0.0009  uniform 0.0 0.121 # redenning E(B-V). If you don't know anything
 syserr = 0.05 # systematic error to add to all fluxes (in %)
 
 # Number of eclipses
-neclipses = 4
+neclipses = 3
 
 # Complex bright spot used, yes (1) or no (0)?
-complex = 0
+complex = 1
 
 # Gaussian processes used, yes (1) or no (0)?
 useGP = 0
@@ -52,5 +52,5 @@ fil_3 = kg5
 
 # Name of chain file
 #chain = Results/SDSS1152/Pre-fit/chain.txt
-chain = Results/SDSS1057/All_eclipse_fit_2/chain.txt
+chain = Results/CSS110113/All_eclipse_fit/chain.txt
 #chain = Results/ASASSN14ag/All_eclipse_fit_noGPs_new/chain.txt

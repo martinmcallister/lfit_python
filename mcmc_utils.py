@@ -132,9 +132,10 @@ def scatterWalkers(pos0,percentScatter):
 
 def initialise_walkers(p,scatter,nwalkers,ln_prior):
     p0 = emcee.utils.sample_ball(p,scatter*p,size=nwalkers)
-    anyInvalid = True
+    numInvalid = nwalkers
+    print('Initialising walkers')
     # All invalid params need to be resampled
-    while anyInvalid:
+    while numInvalid > nwalkers/20:
         # Create a mask of invalid params
         isValid = np.array([np.isfinite(ln_prior(p)) for p in p0])
         bad = p0[~isValid]
@@ -144,11 +145,11 @@ def initialise_walkers(p,scatter,nwalkers,ln_prior):
         means = p0[isValid].mean(axis=0)
         stddevs = p0[isValid].std(axis=0)
         # Sample from multivariate Gaussian with diagonal covariance matrix
-        cov = np.eye(len(p))*stddevs*0.2
+        cov = np.eye(len(p))*stddevs*0.02
         newPos = np.random.multivariate_normal(means,cov,size=len(bad))
         #replace old invalid positions values with new positions
         p0[~isValid] = newPos
-        anyInvalid = np.any(~isValid)
+        numInvalid = len(p0[~isValid])
     return p0
     
 def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
