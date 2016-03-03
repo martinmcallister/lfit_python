@@ -3,6 +3,7 @@ import scipy.signal as signal
 import scipy.optimize as opt
 import scipy.stats as stats
 import pandas as pd
+import emcee
 import dask.dataframe as dd
 import dask.array as da
 #from dask.multiprocessing import get
@@ -129,6 +130,27 @@ def scatterWalkers(pos0,percentScatter):
     scatter = np.array([np.random.normal(size=npars) for i in xrange(nwalkers)])
     return pos0 + percentScatter*pos0*scatter/100.0
 
+def initialise_walkers(p,scatter,nwalkers,ln_prior):
+    p0 = emcee.utils.sample_ball(p,scatter*p,size=nwalkers)
+    anyInvalid = True
+    # All invalid params need to be resampled
+    while anyInvalid:
+        # Create a mask of invalid params
+        isValid = np.array([np.isfinite(ln_prior(p)) for p in p0])
+        bad = p0[~isValid]
+        nbad = len(bad)
+        print(nbad)
+        # Find means and std dev for all valid params
+        means = p0[isValid].mean(axis=0)
+        stddevs = p0[isValid].std(axis=0)
+        # Sample from multivariate Gaussian with diagonal covariance matrix
+        cov = np.eye(len(p))*stddevs*0.2
+        newPos = np.random.multivariate_normal(means,cov,size=len(bad))
+        #replace old invalid positions values with new positions
+        p0[~isValid] = newPos
+        anyInvalid = np.any(~isValid)
+    return p0
+    
 def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
     iStep = 0
     if progress:

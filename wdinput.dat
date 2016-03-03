@@ -1,32 +1,56 @@
 # MCMC run parameters
-nburn    = 5000 # number of steps to use in burn-in phase
-nprod    = 1000 # number of steps to use in production phase
-nwalkers = 32   # must be even multiple of npars (npars = 4)
+nburn    = 400 # number of steps to use in burn-in phase
+nprod    = 200 # number of steps to use in production phase
+nwalkers = 40   # must be even multiple of npars (npars = 4)
 nthread  = 6   # number of CPU threads to use
 scatter  = 0.05 # fractional scatter to add to starting ball of parameters
-thin     = 1  # amount to thin MCMC chain by before calculating best fit
-fit      = 0 # actually fit (1), or just plot model as specified (0)
+thin     = 1 # amount to thin MCMC chain by before calculating best fit
+fit      = 1 # actually fit (1), or just plot model as specified (0)
 
 # all model parameters have both a starting value and a prior
 # priors are specified by type, val1, val2
 # type can be one of 'gauss', 'uniform' or 'log_uniform'
 # if type = 'gauss', val1 and val2 represent mean and standard deviation of prior
 # if type = 'uniform' or 'log_uniform', val1 and val2 represent the limits of prior
-teff  = 13500 uniform 6000 90000  # WD temp
-logg  = 7.5   uniform 7.01 8.99   # log g (model grid runs from 7 to 9, so within this as minimum)
-#logg = 8.55    gauss 8.55 0.02
-dist  = 500   uniform 50 5000 # distance in PC
+teff  = 13500 uniform 5000 90000.0  # WD temp
+#logg  = 7.5   uniform 7.01 9.49   # log g (model grid runs from 7 to 9p.5, so within this as minimum)
+logg = 8.318    gauss 8.318 0.015
+dist  = 500   uniform 20 5000 # distance in PC
 ebv   = 0.0009  uniform 0.0 0.121 # redenning E(B-V). If you don't know anything, should range from 0 to max galactic extinction at this position
 
-# DATA
+#teff  = 12295 uniform 5000 90000.0  # WD temp
+#logg  = 7.62   uniform 7.01 9.49   # log g (model grid runs from 7 to 9.5, so within this as minimum)
+#dist  = 157   uniform 20 5000 # distance in PC
+#ebv   = 0.0644  uniform 0.0 0.121
+
 syserr = 0.05 # systematic error to add to all fluxes (in %)
 
-uflux = 0.0333 
-uferr = 0.002
+# Number of eclipses
+neclipses = 4
 
-gflux = 0.0465 
-gferr = 0.0007
+# Complex bright spot used, yes (1) or no (0)?
+complex = 0
 
-rflux = 0.0381  
-rferr = 0.0009
-redband = r
+# Gaussian processes used, yes (1) or no (0)?
+useGP = 0
+
+# Filters used
+#fil_0 = kg5
+#fil_1 = kg5
+#fil_2 = i
+#fil_3 = g
+#fil_4 = r
+#fil_5 = g
+#fil_6 = r
+fil_7 = g
+
+
+fil_0 = r
+fil_1 = g
+fil_2 = u
+fil_3 = kg5
+
+# Name of chain file
+#chain = Results/SDSS1152/Pre-fit/chain.txt
+chain = Results/SDSS1057/All_eclipse_fit_2/chain.txt
+#chain = Results/ASASSN14ag/All_eclipse_fit_noGPs_new/chain.txt

@@ -373,7 +373,7 @@ if __name__ == "__main__":
         b = 3
         
     # For each filter, fill lists with wd fluxes from mcmc chain, then append to main array
-    '''if uband_used:
+    if uband_used:
         uband = []
         uband_filters = uband_filters[0]
         for i in uband_filters:
@@ -393,15 +393,15 @@ if __name__ == "__main__":
         fluxes_err[0] = uflux_err
         
         umag = Flux(uflux,uflux_err,'u')
-        mags[0] = umag'''
+        mags[0] = umag
     
-    uband_used = True
+    '''uband_used = True
     uflux = 0.389
     uflux_err = np.sqrt(0.025**2 + (uflux*0.05)**2)
     fluxes[0] = uflux
     fluxes_err[0] = uflux_err
     umag = Flux(uflux,uflux_err,'u')
-    mags[0] = umag
+    mags[0] = umag'''
        
     if gband_used:
         gband = []

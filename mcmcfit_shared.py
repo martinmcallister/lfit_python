@@ -139,8 +139,8 @@ class LCModel(Model):
             maxphi = roche.findphi(q.currVal,90.0)
             # dphi cannot be greater than (or within a certain tolerance of) maxphi
             if dphi.currVal > maxphi-tol:
-            	if verbose:
-                	print('Combination of q and dphi is invalid')
+                if verbose:
+                    print('Combination of q and dphi is invalid')
                 retVal += -np.inf
             else:
                 retVal += dphi.prior.ln_prob(dphi.currVal)
@@ -235,6 +235,12 @@ class LCModel(Model):
                 return -np.inf
         else:
             return lnp
+    
+    # Second ln_prior function that allows ln_prior of passed params to be calculated
+    def ln_prior_2(self,parList):
+    	self.pars = parList
+    	lnp = self.ln_prior()
+    	return lnp
             
 class GPLCModel(LCModel):
     """CV lightcurve model for multiple eclipses, with added Gaussian process fitting"""
@@ -501,7 +507,6 @@ if __name__ == "__main__":
         '''    
         p0 = np.array(params) # Starting parameters
         
-        
         '''
         BIZARRO WORLD!
         Calling the ln_prob function once outside of multiprocessing
@@ -513,9 +518,15 @@ if __name__ == "__main__":
         '''
         # print "initial ln probability = %.2f" % model.ln_prob(p0,x,y,e,w)
         
-        # Produce a ball of walkers around p0
-        p0 = emcee.utils.sample_ball(p0,scatter*p0,size=nwalkers)
+        # Wrapper function to access second ln_prior function in model
+        def ln_prior(parList):
+        	return model.ln_prior_2(parList)
         
+        # Produce a ball of walkers around p0, ensuring all walker positions
+        # are valid
+        p0 = initialise_walkers(p0,scatter,nwalkers,ln_prior)
+        
+        	
         '''
         print 'probabilities of walker positions: '
         for i, par in enumerate(p0):
@@ -584,7 +595,7 @@ if __name__ == "__main__":
     gs.update(hspace=0.0)
     seaborn.set()
 
-	# Required for fill-between region
+    # Required for fill-between region
     if complex == 1:
         a = 15
     else:
