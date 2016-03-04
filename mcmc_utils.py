@@ -145,7 +145,7 @@ def initialise_walkers(p,scatter,nwalkers,ln_prior):
         means = p0[isValid].mean(axis=0)
         stddevs = p0[isValid].std(axis=0)
         # Sample from multivariate Gaussian with diagonal covariance matrix
-        cov = np.eye(len(p))*stddevs*0.02
+        cov = np.eye(len(p))*stddevs*0.25*np.absolute(means)
         newPos = np.random.multivariate_normal(means,cov,size=len(bad))
         #replace old invalid positions values with new positions
         p0[~isValid] = newPos

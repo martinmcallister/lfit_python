@@ -397,7 +397,8 @@ if __name__ == "__main__":
     nprod     = int(input_dict['nprod'])
     nthreads  = int(input_dict['nthread'])
     nwalkers  = int(input_dict['nwalkers'])
-    scatter   = float(input_dict['scatter'])
+    scatter_1   = float(input_dict['first_scatter'])
+    scatter_2   = float(input_dict['second_scatter'])
     toFit     = int(input_dict['fit'])
     neclipses = int(input_dict['neclipses'])
     complex   = bool(int(input_dict['complex']))
@@ -504,9 +505,45 @@ if __name__ == "__main__":
             # Wait for instructions from the master process.
             pool.wait()
             sys.exit(0)
-        '''    
-        p0 = np.array(params) # Starting parameters
+        '''   
         
+        # Required for scatter array and fill-between region
+    	if complex == 1:
+        	a = 15
+    	else:
+        	a = 11
+        
+    	if useGP == 1:
+        	b = 6
+    	else:
+        	b = 3 
+        print(a,b)
+        # Starting parameters	
+        p0 = np.array(params) 
+        
+        # Add scatter to starting parameters for first burnin
+        p0_scatter_1 = []
+        for p in range(0,len(p0)):
+        	param_scatter = scatter_1
+        	# Significantly decrease scatter for limb darkening params
+        	if p == 7:
+        		param_scatter = param_scatter/1e6
+        	if (p-(a+b+5))%a == 0 and not p == 0 and not  p == 8 and not p == 11:
+        		param_scatter = param_scatter/1e6
+        	p0_scatter_1.append(param_scatter)
+        p0_scatter_1 = np.array(p0_scatter_1)
+        
+        # Add scatter to starting parameters for second burnin
+        p0_scatter_2 = []
+        for p in range(0,len(p0)):
+        	param_scatter = scatter_2
+        	# Significantly decrease scatter for limb darkening params
+        	if p == 7:
+        		param_scatter = param_scatter/1e6
+        	if (p-(a+b+5))%a == 0 and not p == 0 and not  p == 8 and not p == 11:
+        		param_scatter = param_scatter/1e6
+        	p0_scatter_2.append(param_scatter)
+        p0_scatter_2 = np.array(p0_scatter_2)
         '''
         BIZARRO WORLD!
         Calling the ln_prob function once outside of multiprocessing
@@ -524,7 +561,7 @@ if __name__ == "__main__":
         
         # Produce a ball of walkers around p0, ensuring all walker positions
         # are valid
-        p0 = initialise_walkers(p0,scatter,nwalkers,ln_prior)
+        p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ln_prior)
         
         '''
         print 'probabilities of walker positions: '
@@ -544,7 +581,7 @@ if __name__ == "__main__":
         # DFM (emcee creator) reports this can help convergence in difficult cases
         print('starting second burn-in')
         p0 = pos[np.argmax(prob)]
-        p0 = initialise_walkers(p0,scatter,nwalkers,ln_prior)
+        p0 = initialise_walkers(p0,p0_scatter_2,nwalkers,ln_prior)
         pos, prob, state = run_burnin(sampler,p0,nburn)
 
         #Production
@@ -593,17 +630,6 @@ if __name__ == "__main__":
     gs = gridspec.GridSpec(2,1,height_ratios=[2,1])
     gs.update(hspace=0.0)
     seaborn.set()
-
-    # Required for fill-between region
-    if complex == 1:
-        a = 15
-    else:
-        a = 11
-        
-    if useGP == 1:
-        b = 6
-    else:
-        b = 3
 
     for iecl in range(neclipses):
         xp = x[iecl]
