@@ -15,7 +15,7 @@ try:
     getattr(triangle,"corner")
 except AttributeError:
     # We want the other package                                               
-    import triangle_plot as triangle
+    import corner as triangle
     
 # lightweight progress bar
 from tqdm import tqdm

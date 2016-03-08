@@ -4,6 +4,7 @@ from scipy.linalg import cho_factor, cho_solve
 import numpy as np
 import copy
 import ctypes
+from itertools import product
 from six.moves import range
 from six.moves import zip
 
@@ -19,7 +20,7 @@ class Kernel(object):
         if isinstance(k2,Kernel):
             return Sum(self,k2)
         else:
-            pars = [np.sqrt(np.fabs(k2)) for i in range(self.ndim)]
+            pars = [np.fabs(k2) for i in range(self.ndim)]
             return Sum(self,ConstantKernel(pars,ndim=self.ndim))
                     
     def __radd__(self,k2):
@@ -29,7 +30,7 @@ class Kernel(object):
         if isinstance(k2,Kernel):            
             return Product(self,k2)
         else:
-            pars = [np.sqrt(np.fabs(k2)) for i in range(self.ndim)]
+            pars = [np.fabs(k2) for i in range(self.ndim)]
             return Product(self,ConstantKernel(pars,ndim=self.ndim))
         
     def __rmul__(self,k2):
@@ -40,12 +41,25 @@ class Kernel(object):
             raise Exception("Must compute covariance matrix first")
         return self.covar
 
+    def precompute(self,x):
+        """Needed for changepoint kernels.
+        
+        For a changepoint kernel we need to work out the indices
+        corresponding to the changepoints.
+        
+        Do nothing for normal kernels
+        """
+        pass
+        
     def compute(self,x,errs):
         self.computed = False
         
         x = np.atleast_2d(x)
         assert (x.shape[0] == self.ndim) or (x.shape[0] == 1), "1st dimension of x array must either match dimensions of kernel or be 1"
         assert len(errs) == x.shape[1], "Length of error array must match 2nd dimension of x array"
+        
+        # precompute for changepoint kernels
+        self.precompute(x)
         
         if x.shape[0] == 1:
             x = np.vstack([x for i in range(self.ndim)])
@@ -65,6 +79,8 @@ class Kernel(object):
     def get_matrix(self,x1,x2):
         #check x1
         x1 = np.atleast_2d(x1)
+        
+        
         assert (x1.shape[0] == self.ndim) or (x1.shape[0] == 1), "1st dimension of x1 array must either match dimensions of kernel or be 1"
         if x1.shape[0] == 1:
             x1 = np.vstack([x1 for i in range(self.ndim)])
@@ -75,6 +91,9 @@ class Kernel(object):
         if x2.shape[0] == 1:
             x2 = np.vstack([x2 for i in range(self.ndim)])
 
+        # precompute for changepoint kernels
+        self.precompute(x1)
+        
         matrix = np.zeros((x1.shape[1],x2.shape[1]))
         for i in range(self.ndim):
             X1, X2 = np.meshgrid(x1[i,:],x2[i,:],indexing='ij')
@@ -82,6 +101,7 @@ class Kernel(object):
             matrix += self._evaluate(deltaT,i)
         return matrix
         
+
 class DrasticChangepointKernel(Kernel):
     """Implementation of drastic changepoint kernel from Osborne et al.
     The assumption is that the change in hyperparameters is so large that 
@@ -164,7 +184,11 @@ class Sum(Kernel):
         self._k2 = k2
         self.computed = False
         self.ndim = k1.ndim
-        
+
+    def precompute(self,x):
+        self._k1.precompute(x)
+        self._k2.precompute(x)
+                
     def _evaluate(self,deltaT,idim):
         return self._k1._evaluate(deltaT,idim) + self._k2._evaluate(deltaT,idim)
         
@@ -175,15 +199,52 @@ class Product(Kernel):
         self._k2 = k2
         self.ndim = k1.ndim
         self.computed = False
-        
+    
+    def precompute(self,x):
+        self._k1.precompute(x)
+        self._k2.precompute(x)
+            
     def _evaluate(self,deltaT,idim):
         return self._k1._evaluate(deltaT,idim) * self._k2._evaluate(deltaT, idim)
                 
 class ConstantKernel(Kernel):
     def _evaluate(self,deltaT,idim):
         tau = self.pars[0]
-        return tau*tau*np.ones_like(deltaT)
+        return tau*np.ones_like(deltaT)
+  
+class OutputScaleChangePointKernel(Kernel):
+    """Kernel with drastic changes in output scale
+    
+    See Osborne et al or sect 4.4 of Garnett et al (2010) for details"""
+    def __init__(self, pars, changepoints, **kwargs):
+        assert pars.ndim == 1, "Only 1D Changepoint Kernels are supported"
+        assert len(changepoints)+1 == len(pars), "Must have one fewer changepoints than pars"
+        self.changepoints = np.array(changepoints)
+        self.cpIndices    = None
+        self.pars         = np.array(pars)
+        self.ndim = 1
+        self.computed = False
         
+    def precompute(self,x):
+        """Calculate indices of changepoints"""
+        self.cpIndices = [np.argmax(x>cp) for cp in self.changepoints if (x.min() <= cp <= x.max())]
+        self.cpIndices.insert(0,0)
+        self.cpIndices.append(x.shape[1])
+        
+    def _evaluate(self,deltaT,idim):
+        # like a constant kernel, but with tau dependent on deltaT and changepoints
+        start_of_slices = self.cpIndices[:-1]
+        end_of_slices   = self.cpIndices[1:]
+        slices = [slice(s,e) for s,e in zip(start_of_slices,end_of_slices)]
+        slice_combinations = product(slices,slices)
+        par_combinations = product(self.pars,self.pars)
+
+        out = np.ones_like(deltaT)
+        for par_pair, slice_pair in zip(par_combinations, slice_combinations):
+            tau = np.sqrt(par_pair[0]*par_pair[1])
+            out[slice_pair[0],slice_pair[1]] = tau
+        return out
+                
 class ExpKernel(Kernel):
     def _evaluate(self,deltaT,idim):
         return np.exp(-np.fabs(deltaT/np.sqrt(self.pars[idim])))
