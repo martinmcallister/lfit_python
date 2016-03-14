@@ -41,3 +41,6 @@ modparams_3eclfit.txt
 params.txt
 physicalparams.log
 scatter_test/**
+chain_flat.txt
+data_old**
+old_wdinput

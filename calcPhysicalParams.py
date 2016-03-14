@@ -210,18 +210,26 @@ if __name__ == "__main__":
     parser.add_argument('e_p',action='store',type=float,help='error on period')
     parser.add_argument('--thin','-t',type=int,help='amount to thin MCMC chain by',default=1)
     parser.add_argument('--nthreads','-n',type=int,help='number of threads to run',default=6)
+    parser.add_argument('--flat','-f',type=int,help='Factor of thinning if flattened chain used',default=0)
 
     parser.add_argument('--dir','-d',help='directory with WD models',default='/Users/mmc/lfit/params')
     args = parser.parse_args()
     file = args.file
     thin = args.thin
     nthreads = args.nthreads
+    flat = args.flat
     baseDir = args.dir
 
-    #chain = readchain(file)
-    chain = readchain_dask(file)
-    nwalkers, nsteps, npars = chain.shape
-    fchain = flatchain(chain,npars,thin=thin)
+    if flat > 0:
+        # Input chain already thinned but may require additional thinning
+        fchain = readflatchain(file)
+        nobjects = (flat*len(fchain))/thin
+        fchain = fchain[:nobjects]
+    else:
+        #chain = readchain(file)
+        chain = readchain_dask(file)
+        nwalkers, nsteps, npars = chain.shape
+        fchain = flatchain(chain,npars,thin=thin)
 
     # this is the order of the params in the chain
     nameList = ['fwd','fdisc','fbs','fd','q','dphi','rdisc','ulimb','rwd','scale', \

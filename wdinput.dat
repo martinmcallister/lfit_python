@@ -14,7 +14,7 @@ fit      = 1 # actually fit (1), or just plot model as specified (0)
 # if type = 'uniform' or 'log_uniform', val1 and val2 represent the limits of prior
 teff  = 13500 uniform 5000 90000.0  # WD temp
 #logg  = 7.5   uniform 7.01 9.49   # log g (model grid runs from 7 to 9p.5, so within this as minimum)
-logg = 8.620    gauss 8.620 0.020
+logg = 8.178    gauss 8.178 0.020
 dist  = 500   uniform 20 5000 # distance in PC
 ebv   = 0.0009  uniform 0.0 0.121 # redenning E(B-V). If you don't know anything, should range from 0 to max galactic extinction at this position
 
@@ -23,10 +23,10 @@ ebv   = 0.0009  uniform 0.0 0.121 # redenning E(B-V). If you don't know anything
 #dist  = 157   uniform 20 5000 # distance in PC
 #ebv   = 0.0644  uniform 0.0 0.121
 
-syserr = 0.05 # systematic error to add to all fluxes (in %)
+syserr = 0.00 # systematic error to add to all fluxes (in %)
 
 # Number of eclipses
-neclipses = 3
+neclipses = 8
 
 # Complex bright spot used, yes (1) or no (0)?
 complex = 1
@@ -35,22 +35,26 @@ complex = 1
 useGP = 0
 
 # Filters used
-#fil_0 = kg5
-#fil_1 = kg5
-#fil_2 = i
-#fil_3 = g
-#fil_4 = r
-#fil_5 = g
-#fil_6 = r
+fil_0 = kg5
+fil_1 = kg5
+fil_2 = i
+fil_3 = g
+fil_4 = r
+fil_5 = g
+fil_6 = r
 fil_7 = g
 
 
-fil_0 = r
-fil_1 = g
-fil_2 = u
-fil_3 = kg5
+#fil_0 = r
+#fil_1 = g
+#fil_2 = u
+#fil_3 = kg5
+
+# Flattened chain to be input?
+flat = 1
 
 # Name of chain file
 #chain = Results/SDSS1152/Pre-fit/chain.txt
-chain = Results/CSS110113/All_eclipse_fit/chain.txt
-#chain = Results/ASASSN14ag/All_eclipse_fit_noGPs_new/chain.txt
+#chain = Results/CSS110113/All_eclipse_fit/chain.txt
+chain = Results/ASASSN14ag/All_eclipse_fit_noGPs_4/chain_flat.txt
+#chain = Results/ASASSN14ag/Average_kg5_fit/chain.txt

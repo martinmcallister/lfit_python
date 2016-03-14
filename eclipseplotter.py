@@ -29,17 +29,21 @@ if __name__ == "__main__":
     file = input_dict['chain']
     
     # Read information about neclipses, plot ranges, complex bs, gps
-    neclipses = int(input_dict['neclipses'])
+    flat      = int( input_dict['flat'] )
     thin     = int( input_dict['nthin'] )
+    neclipses = int(input_dict['neclipses'])
     start = float(input_dict['phi_start'])
     end = float(input_dict['phi_end'])
     complex   = bool(int(input_dict['complex']))
     useGP     = bool(int(input_dict['useGP']))
     cornerplot = bool(int(input_dict['cornerplot']))
     
-    chain = readchain_dask(file)
-    nwalkers, nsteps, npars = chain.shape
-    fchain = flatchain(chain,npars,thin=thin)
+    if flat:
+        fchain = readflatchain(file)
+    else:
+        chain = readchain_dask(file)
+        nwalkers, nsteps, npars = chain.shape
+        fchain = flatchain(chain,npars,thin=thin)
     
     # Read in file names containing eclipse data, as well as output plot file names
     files = []
@@ -89,11 +93,11 @@ if __name__ == "__main__":
     if complex:
         paramlist.extend(['exp1_1','exp2_1','tilt_1','yaw_1'])'''
           
-    # params for second eclipse   
-    '''chain_2 = fchain[:,34:49]
-    paramlist = ['wdFlux_2','dFlux_2','sFlux_2','rsFlux_2','rdisc_2','ulimb_2','scale_2','az_2','fis_2','dexp_2','phi0_2']
+    # params for fourth eclipse   
+    '''chain_2 = fchain[:,48:62]
+    paramlist = ['wdFlux_3','dFlux_3','sFlux_3','rsFlux_3','rdisc_3','ulimb_3','scale_3','az_3','fis_3','dexp_3','phi0_3']
     if complex:
-        paramlist.extend(['exp1_2','exp2_2','tilt_2','yaw_2'])'''
+        paramlist.extend(['exp1_3','exp2_3','tilt_3','yaw_3'])'''
      
     if cornerplot == 1:    
         # Create corner plot

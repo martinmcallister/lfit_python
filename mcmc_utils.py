@@ -135,7 +135,7 @@ def initialise_walkers(p,scatter,nwalkers,ln_prior):
     numInvalid = nwalkers
     print('Initialising walkers')
     # All invalid params need to be resampled
-    while numInvalid > nwalkers/20:
+    while numInvalid > nwalkers/10:
         # Create a mask of invalid params
         isValid = np.array([np.isfinite(ln_prior(p)) for p in p0])
         bad = p0[~isValid]
@@ -145,7 +145,7 @@ def initialise_walkers(p,scatter,nwalkers,ln_prior):
         means = p0[isValid].mean(axis=0)
         stddevs = p0[isValid].std(axis=0)
         # Sample from multivariate Gaussian with diagonal covariance matrix
-        cov = np.eye(len(p))*stddevs*0.25*np.absolute(means)
+        cov = np.eye(len(p))*stddevs*scatter[0]*np.absolute(means)
         newPos = np.random.multivariate_normal(means,cov,size=len(bad))
         #replace old invalid positions values with new positions
         p0[~isValid] = newPos
@@ -239,6 +239,11 @@ def readchain_dask(file,nskip=0,thin=1):
     npars = data.shape[1]-1 # first is walker ID, last is ln_prob
     chain = np.reshape(data[:,1:],(nwalkers,nprod,npars))
     return chain
+
+def readflatchain(file):
+    data = pd.read_csv(file,header=None,compression=None,delim_whitespace=True)
+    data = np.array(data)
+    return data
 
 def plotchains(chain,npar,alpha=0.2):
     nwalkers, nsteps, npars = chain.shape

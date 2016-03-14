@@ -283,7 +283,7 @@ class GPLCModel(LCModel):
             # Calculate length of wd egress
             dpwd = phi4 - phi3
             # Distance from changepoints to mideclipse
-            dist_cp = dphi.currVal/2.+dpwd/2.
+            dist_cp = (dphi.currVal+dpwd)/2.
         else:
             dist_cp = self._dist_cp
                         
@@ -331,7 +331,7 @@ class GPLCModel(LCModel):
         ampout = np.exp(ln_ampout.currVal)
         tau = np.exp(ln_tau.currVal)
        
-        # Calculate kernels for both out of and in eclipse WD eclipse
+        '''# Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has smaller amplitude than that of outside eclipse,
         k_in  = ampin*GP.Matern32Kernel(tau)
         k_out = ampout*GP.Matern32Kernel(tau)
@@ -345,7 +345,16 @@ class GPLCModel(LCModel):
             kernel_struc.append(k_out)
         
         # Create kernel with changepoints 
-        kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
+        kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)'''
+        
+        k1 = GP.Matern32Kernel(tau)
+        
+        gp_pars = np.array([ampout,ampin,ampout])
+        changepoints = self.calcChangepoints(phi)
+        
+        k2 = GP.OutputScaleChangePointKernel(gp_pars,changepoints)
+        
+        kernel = k1*k2
         
         # Create GPs using this kernel
         gp = GP.GaussianProcess(kernel)
@@ -517,7 +526,7 @@ if __name__ == "__main__":
         	b = 6
     	else:
         	b = 3 
-        print(a,b)
+        
         # Starting parameters	
         p0 = np.array(params) 
         
@@ -577,12 +586,12 @@ if __name__ == "__main__":
         # Run burn-in stage of mcmc using run_burnin function from mcmc_utils.py
         pos, prob, state = run_burnin(sampler,p0,nburn)
         
-        # Run second burn-in stage, scattered around best fit of previous burn-in
+        '''# Run second burn-in stage, scattered around best fit of previous burn-in
         # DFM (emcee creator) reports this can help convergence in difficult cases
         print('starting second burn-in')
         p0 = pos[np.argmax(prob)]
         p0 = initialise_walkers(p0,p0_scatter_2,nwalkers,ln_prior)
-        pos, prob, state = run_burnin(sampler,p0,nburn)
+        pos, prob, state = run_burnin(sampler,p0,nburn)'''
 
         #Production
         sampler.reset()
@@ -600,7 +609,10 @@ if __name__ == "__main__":
         
         # Create a chain (i.e. collect results from all walkers) using flatchain function
         # from mcmc_utils.py
-        chain = flatchain(sampler.chain,npars,thin=10)        
+        chain = flatchain(sampler.chain,npars,thin=10)
+        
+        # Save flattened chain
+        np.savetxt('chain_flat.txt',chain,delimiter=' ')     
         
         # Print out individual parameters
         params = []

@@ -320,6 +320,7 @@ if __name__ == "__main__":
     neclipses = int( input_dict['neclipses'] )
     complex   = int( input_dict['complex'] )
     useGP     = int( input_dict['useGP'] )
+    flat      = int( input_dict['flat'] )
     
     # Add in filters used
     filters = []
@@ -330,10 +331,14 @@ if __name__ == "__main__":
         
     # Load in chain file
     file = input_dict['chain']
-    #chain = readchain(file)
-    chain = readchain_dask(file)
-    nwalkers, nsteps, npars = chain.shape
-    fchain = flatchain(chain,npars,thin=thin)
+    
+    if flat:
+        fchain = readflatchain(file)
+    else:
+        #chain = readchain(file)
+        chain = readchain_dask(file)
+        nwalkers, nsteps, npars = chain.shape
+        fchain = flatchain(chain,npars,thin=thin)
     
     # Create array of indexes of same filter type
     uband_filters = np.where(filters == 'u')
@@ -373,7 +378,7 @@ if __name__ == "__main__":
         b = 3
         
     # For each filter, fill lists with wd fluxes from mcmc chain, then append to main array
-    if uband_used:
+    '''if uband_used:
         uband = []
         uband_filters = uband_filters[0]
         for i in uband_filters:
@@ -393,15 +398,15 @@ if __name__ == "__main__":
         fluxes_err[0] = uflux_err
         
         umag = Flux(uflux,uflux_err,'u')
-        mags[0] = umag
+        mags[0] = umag'''
     
-    '''uband_used = True
+    uband_used = True
     uflux = 0.389
-    uflux_err = np.sqrt(0.025**2 + (uflux*0.05)**2)
+    uflux_err = np.sqrt(0.025**2 + (uflux*syserr)**2)
     fluxes[0] = uflux
     fluxes_err[0] = uflux_err
     umag = Flux(uflux,uflux_err,'u')
-    mags[0] = umag'''
+    mags[0] = umag
        
     if gband_used:
         gband = []
@@ -426,7 +431,7 @@ if __name__ == "__main__":
     
     '''gband_used = True
     gflux = 0.488
-    gflux_err = np.sqrt(0.006**2 + (gflux*0.05)**2)
+    gflux_err = np.sqrt(0.006**2 + (gflux*syserr)**2)
     fluxes[1] = gflux
     fluxes_err[1] = gflux_err
     gmag = Flux(gflux,gflux_err,'g')
@@ -455,7 +460,7 @@ if __name__ == "__main__":
     
     '''rband_used = True
     rflux = 0.404
-    rflux_err = np.sqrt(0.008**2 + (rflux*0.05)**2)
+    rflux_err = np.sqrt(0.008**2 + (rflux*syserr)**2)
     fluxes[2] = rflux
     fluxes_err[2] = rflux_err
     rmag = Flux(rflux,rflux_err,'r')
@@ -483,7 +488,7 @@ if __name__ == "__main__":
     
     '''iband_used = True
     iflux = 0.272
-    iflux_err = np.sqrt(0.006**2 + (iflux*0.05)**2)
+    iflux_err = np.sqrt(0.006**2 + (iflux*syserr)**2)
     fluxes[3] = iflux
     fluxes_err[3] = iflux_err
     imag = Flux(iflux,iflux_err,'i')
@@ -512,7 +517,7 @@ if __name__ == "__main__":
     
     '''zband_used = True
     zflux = 0.33
-    zflux_err = np.sqrt(0.006**2 + (zflux*0.05)**2)
+    zflux_err = np.sqrt(0.006**2 + (zflux*syserr)**2)
     fluxes[4] = zflux
     fluxes_err[4] = zflux_err
     zmag = Flux(zflux,zflux_err,'z')
@@ -541,7 +546,7 @@ if __name__ == "__main__":
     
     '''kg5band_used = True
     kg5flux = 0.398
-    kg5flux_err = np.sqrt(0.005**2 + (kg5flux*0.05)**2)
+    kg5flux_err = np.sqrt(0.005**2 + (kg5flux*syserr)**2)
     fluxes[5] = kg5flux
     fluxes_err[5] = kg5flux_err
     kg5mag = Flux(kg5flux,kg5flux_err,'kg5')
