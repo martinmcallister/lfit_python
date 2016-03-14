@@ -41,7 +41,7 @@ class Kernel(object):
             raise Exception("Must compute covariance matrix first")
         return self.covar
 
-    def precompute(self,x):
+    def precompute(self,x1,x2):
         """Needed for changepoint kernels.
         
         For a changepoint kernel we need to work out the indices
@@ -59,7 +59,7 @@ class Kernel(object):
         assert len(errs) == x.shape[1], "Length of error array must match 2nd dimension of x array"
         
         # precompute for changepoint kernels
-        self.precompute(x)
+        self.precompute(x,x)
         
         if x.shape[0] == 1:
             x = np.vstack([x for i in range(self.ndim)])
@@ -92,7 +92,7 @@ class Kernel(object):
             x2 = np.vstack([x2 for i in range(self.ndim)])
 
         # precompute for changepoint kernels
-        self.precompute(x1)
+        self.precompute(x1,x2)
         
         matrix = np.zeros((x1.shape[1],x2.shape[1]))
         for i in range(self.ndim):
@@ -185,9 +185,9 @@ class Sum(Kernel):
         self.computed = False
         self.ndim = k1.ndim
 
-    def precompute(self,x):
-        self._k1.precompute(x)
-        self._k2.precompute(x)
+    def precompute(self,x1, x2):
+        self._k1.precompute(x1, x2)
+        self._k2.precompute(x1, x2)
                 
     def _evaluate(self,deltaT,idim):
         return self._k1._evaluate(deltaT,idim) + self._k2._evaluate(deltaT,idim)
@@ -200,9 +200,9 @@ class Product(Kernel):
         self.ndim = k1.ndim
         self.computed = False
     
-    def precompute(self,x):
-        self._k1.precompute(x)
-        self._k2.precompute(x)
+    def precompute(self, x1, x2):
+        self._k1.precompute(x1, x2)
+        self._k2.precompute(x1, x2)
             
     def _evaluate(self,deltaT,idim):
         return self._k1._evaluate(deltaT,idim) * self._k2._evaluate(deltaT, idim)
@@ -225,22 +225,36 @@ class OutputScaleChangePointKernel(Kernel):
         self.ndim = 1
         self.computed = False
         
-    def precompute(self,x):
+    def precompute(self, x1, x2):
         """Calculate indices of changepoints"""
-        self.cpIndices = [np.argmax(x>cp) for cp in self.changepoints if (x.min() <= cp <= x.max())]
-        self.cpIndices.insert(0,0)
-        self.cpIndices.append(x.shape[1])
+        self.cpIndices = []
+        # locations of changepoints in x1
+        self.cpIndices.append( [np.argmax(x1>cp) for cp in self.changepoints if (x1.min() <= cp <= x1.max())] )
+        self.cpIndices[0].insert(0,0)
+        self.cpIndices[0].append(x1.shape[1])
+        # locations of changepoints in x2
+        self.cpIndices.append(  [np.argmax(x2>cp) for cp in self.changepoints if (x2.min() <= cp <= x2.max())] )
+        self.cpIndices[1].insert(0,0)
+        self.cpIndices[1].append(x2.shape[1])
         
     def _evaluate(self,deltaT,idim):
         # like a constant kernel, but with tau dependent on deltaT and changepoints
-        start_of_slices = self.cpIndices[:-1]
-        end_of_slices   = self.cpIndices[1:]
-        slices = [slice(s,e) for s,e in zip(start_of_slices,end_of_slices)]
-        slice_combinations = product(slices,slices)
+        
+        # convert CPs in each axis into a list of slice obects 
+        start_of_slices = self.cpIndices[0][:-1]
+        end_of_slices   = self.cpIndices[0][1:]
+        slices0 = [slice(s,e) for s,e in zip(start_of_slices,end_of_slices)]
+
+        start_of_slices = self.cpIndices[1][:-1]
+        end_of_slices   = self.cpIndices[1][1:]
+        slices1 = [slice(s,e) for s,e in zip(start_of_slices,end_of_slices)]
+
+        slice_combinations = product(slices0,slices1)
         par_combinations = product(self.pars,self.pars)
 
-        out = np.ones_like(deltaT)
-        for par_pair, slice_pair in zip(par_combinations, slice_combinations):
+        out = np.zeros_like(deltaT)
+        for par_pair, slice_pair in zip(par_combinations, slice_combinations):               
+            #tau = np.sqrt(par_pair[0]*par_pair[1]) if par_pair[0]==par_pair[1] else 0
             tau = np.sqrt(par_pair[0]*par_pair[1])
             out[slice_pair[0],slice_pair[1]] = tau
         return out
@@ -335,26 +349,99 @@ class GaussianProcess(object):
         return np.random.multivariate_normal(mu,cov,size)
             
 
+def test_cps():
+    from astropy.convolution import Gaussian1DKernel, convolve
+    x = np.linspace(0,20,500)
+    xalt = np.linspace(0,20,350)
+    e = 0.1*np.ones_like(x)
+    
+    before, after = 0.01,0.5
+    #before cp1
+    mask = x<10
+    k = before*ExpSquaredKernel(0.3)
+    gp = GaussianProcess(k)
+    gp.compute(x[mask],e[mask])
+    y1 = gp.sample(x[mask],size=1)[0]
+
+    
+    #after cp
+    mask = x>=10
+    k = after*ExpSquaredKernel(0.3)
+    gp = GaussianProcess(k)
+    gp.compute(x[mask],e[mask])
+    y2 = gp.sample(x[mask],size=1)[0]
+    
+    # scale so continuous
+    y2 += y1[-1]-y2[0]
+    y = np.concatenate((y1,y2))
+    
+    # create filter
+    g = Gaussian1DKernel(stddev=2)
+    # Convolve data
+    y = convolve(y, g, boundary='extend')
+
+
+    k1 = ExpSquaredKernel(0.3)
+    pars = np.array([before,after])
+    changePoints = np.array([10])
+    k2 = OutputScaleChangePointKernel(pars,changePoints)
+    kernel = k2*k1
+    gp = GaussianProcess(kernel)
+    gp.compute(x,e)
+    
+    mat1 = kernel.get_matrix(x,xalt)
+    #plt.imshow(mat)
+    #plt.show()
+
+    xt = np.linspace(0,20,1000)
+    samples = gp.sample_conditional(y,xt)
+    mu = np.mean(samples,axis=0)
+    fmu, _ = gp.predict(y, xt)
+    std = np.std(samples,axis=0)
+    
+    plt.plot(x,y,'k-')
+    plt.plot(xt,fmu,'r--')
+    plt.fill_between(xt,mu-std,mu+std,color='r',alpha=0.5)
+
+    k1 = before*ExpSquaredKernel(0.3)
+    k2 = after*ExpSquaredKernel(0.3)
+    kernel = DrasticChangepointKernel([k1,k2],changePoints)
+    gp = GaussianProcess(kernel)
+    gp.compute(x,e)
+    xt = np.linspace(0,20,1000)
+    samples = gp.sample_conditional(y,xt)
+    mu = np.mean(samples,axis=0)
+    std = np.std(samples,axis=0)
+    plt.fill_between(xt,mu-std,mu+std,color='g',alpha=0.2)
+    
+    mat2 = kernel.get_matrix(x,xalt)
+    fig, ax = plt.subplots(nrows=1,ncols=3)
+    plt.subplots_adjust(wspace=0.0)
+    ax[0].imshow( mat1 )
+    ax[1].imshow( mat2 )
+    ax[2].imshow( mat1-mat2)
+    plt.show()
+    
 if __name__ == "__main__":
     import george
     from matplotlib import pyplot as plt
     import seaborn as sns
     sns.set()
-    
+    """
     k1 = 2.0*george.kernels.ExpSquaredKernel(3.0) + 1.0*george.kernels.Matern32Kernel(2.0)
     k2 = 2.0*ExpSquaredKernel(3.0) + 1.0*Matern32Kernel(2.0)
     gp1 = george.GP(k1)
     x = np.linspace(0,30,100)
     e = 0.01*np.ones_like(x)
 
-    plt.subplot(311)
-    plt.imshow( gp1.get_matrix(x) )
-    plt.subplot(312)
-    plt.imshow( k2.get_matrix(x,x) )
-    plt.subplot(313)
+    fig, ax = plt.subplots(nrows=1,ncols=3)
+    plt.subplots_adjust(wspace=0.0)
+    ax[0].imshow( gp1.get_matrix(x) )
+    ax[1].imshow( k2.get_matrix(x,x) )
     X = k2.get_matrix(x,x)/gp1.get_matrix(x)
     print(X.mean(), X.std())
-    plt.imshow(X)
+    ax[2].imshow(X)
     plt.show()
-    
+    """
+    test_cps()
     
