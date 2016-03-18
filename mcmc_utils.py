@@ -130,26 +130,30 @@ def scatterWalkers(pos0,percentScatter):
     scatter = np.array([np.random.normal(size=npars) for i in xrange(nwalkers)])
     return pos0 + percentScatter*pos0*scatter/100.0
 
-def initialise_walkers(p,scatter,nwalkers,ln_prior):
-    p0 = emcee.utils.sample_ball(p,scatter*p,size=nwalkers)
-    numInvalid = nwalkers
+def initialise_walkers(p,scatter,nwalkers,ntemps,ln_prior):
+    p0 = np.array([emcee.utils.sample_ball(p,scatter*p,size=nwalkers) for i in range(ntemps)])
+    p0_new = np.array(p0[0])
+    for p in p0[1:]:
+        p0_new = np.concatenate((p0_new,p),axis=0)
+    numInvalid = nwalkers*ntemps
     print('Initialising walkers')
     # All invalid params need to be resampled
-    while numInvalid > nwalkers/10:
+    while numInvalid > (nwalkers*ntemps)/10:
         # Create a mask of invalid params
-        isValid = np.array([np.isfinite(ln_prior(p)) for p in p0])
-        bad = p0[~isValid]
+        isValid = np.array([np.isfinite(ln_prior(p)) for p in p0_new])
+        bad = p0_new[~isValid]
         nbad = len(bad)
         print(nbad)
         # Find means and std dev for all valid params
-        means = p0[isValid].mean(axis=0)
-        stddevs = p0[isValid].std(axis=0)
+        means = p0_new[isValid].mean(axis=0)
+        stddevs = p0_new[isValid].std(axis=0)
         # Sample from multivariate Gaussian with diagonal covariance matrix
         cov = np.eye(len(p))*stddevs*scatter[0]*np.absolute(means)
         newPos = np.random.multivariate_normal(means,cov,size=len(bad))
         #replace old invalid positions values with new positions
-        p0[~isValid] = newPos
-        numInvalid = len(p0[~isValid])
+        p0_new[~isValid] = newPos
+        numInvalid = len(p0_new[~isValid])  
+    p0 = np.array(np.split(p0_new,ntemps,axis=0))
     return p0
     
 def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
@@ -163,7 +167,7 @@ def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
     return pos, prob, state
     
 def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
-    '''runs and MCMC chain with emcee, and saves steps to a file'''
+    '''runs an MCMC chain with emcee, and saves steps to a file'''
     #open chain save file
     if file:
         f = open(file,"w")

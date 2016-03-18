@@ -113,7 +113,7 @@ class LCModel(Model):
             resids = (y[iecl] - self.calc(iecl,phi[iecl],thisWidth)) / e[iecl]
             # Check for bugs in model
             if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-                warning.warn('model gave nan or inf answers')
+                warnings.warn('model gave nan or inf answers')
                 return -np.inf
             retVal += np.sum(resids**2)
         return retVal
@@ -240,8 +240,18 @@ class LCModel(Model):
     def ln_prior_2(self,parList):
     	self.pars = parList
     	lnp = self.ln_prior()
-    	return lnp
-            
+    	if np.isfinite(lnp):
+    		return lnp
+    	else:
+    		return -np.inf
+    	
+    def ln_like_2(self,parList,phi,y,e,width=None):
+    	self.pars = parList
+    	try:
+    		return self.ln_like(phi,y,e,width) 
+    	except:
+    		return -np.inf
+    		
 class GPLCModel(LCModel):
     """CV lightcurve model for multiple eclipses, with added Gaussian process fitting"""
     
@@ -384,6 +394,13 @@ class GPLCModel(LCModel):
             # Calculate ln_like using lnlikelihood function from GaussianProcess.py             
             lnlike += gp.lnlikelihood(resids)         
         return lnlike
+        
+    def ln_like_2(self,parList,phi,y,e,width=None):
+    	self.pars = parList
+    	try:
+    		return self.ln_like(phi,y,e,width) 
+    	except:
+    		return -np.inf
                 
 def parseInput(file):
     """Splits input file up making it easier to read"""
@@ -406,6 +423,7 @@ if __name__ == "__main__":
     nprod     = int(input_dict['nprod'])
     nthreads  = int(input_dict['nthread'])
     nwalkers  = int(input_dict['nwalkers'])
+    ntemps	  = int(input_dict['ntemps'])
     scatter_1   = float(input_dict['first_scatter'])
     scatter_2   = float(input_dict['second_scatter'])
     toFit     = int(input_dict['fit'])
@@ -450,7 +468,8 @@ if __name__ == "__main__":
         
     # pickle is used for parallelisation
     # pickle cannot pickle methods of classes, so we wrap
-    # the ln_prob function here to make something that can be pickled
+    # the ln_prior, ln_like and ln_prob functions here to 
+    # make something that can be pickled
     def ln_prob(parList,phi,y,e,width=None):
         return model.ln_prob(parList,phi,y,e,width=None)
     # Add in additional eclipses as necessary
@@ -535,10 +554,13 @@ if __name__ == "__main__":
         for p in range(0,len(p0)):
         	param_scatter = scatter_1
         	# Significantly decrease scatter for limb darkening params
+        	# and dphi
         	if p == 7:
         		param_scatter = param_scatter/1e6
-        	if (p-(a+b+5))%a == 0 and not p == 0 and not  p == 8 and not p == 11:
+        	if (p-(a+b+5))%a == 0 and not p == 0 and not p == 8 and not p == 11:
         		param_scatter = param_scatter/1e6
+        	if p == 5:
+        		param_scatter = param_scatter/1e2
         	p0_scatter_1.append(param_scatter)
         p0_scatter_1 = np.array(p0_scatter_1)
         
@@ -547,10 +569,13 @@ if __name__ == "__main__":
         for p in range(0,len(p0)):
         	param_scatter = scatter_2
         	# Significantly decrease scatter for limb darkening params
+        	# and dphi
         	if p == 7:
         		param_scatter = param_scatter/1e6
-        	if (p-(a+b+5))%a == 0 and not p == 0 and not  p == 8 and not p == 11:
+        	if (p-(a+b+5))%a == 0 and not p == 0 and not p == 8 and not p == 11:
         		param_scatter = param_scatter/1e6
+        	if p == 5:
+        		param_scatter = param_scatter/1e2
         	p0_scatter_2.append(param_scatter)
         p0_scatter_2 = np.array(p0_scatter_2)
         '''
@@ -565,12 +590,15 @@ if __name__ == "__main__":
         # print "initial ln probability = %.2f" % model.ln_prob(p0,x,y,e,w)
         
         # Wrapper function to access second ln_prior function in model
-        def ln_prior(parList):
+        def ln_prior_2(parList):
         	return model.ln_prior_2(parList)
+        	
+        def ln_like_2(parList,phi,y,e,width=None):
+        	return model.ln_like_2(parList,phi,y,e,width=None)
         
         # Produce a ball of walkers around p0, ensuring all walker positions
         # are valid
-        p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ln_prior)
+        p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ntemps,ln_prior_2)
         
         '''
         print 'probabilities of walker positions: '
@@ -578,8 +606,12 @@ if __name__ == "__main__":
             print '%d = %.2f' % (i,model.ln_prob(par,x,y,e,w))
         '''
         
-        # Instantiate Ensemble sampler
-        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)
+        '''# Instantiate Ensemble sampler
+        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)'''
+        
+        # Instantiate Parallel-Tempering Ensemble sampler
+        sampler = emcee.PTSampler(ntemps,nwalkers,npars,ln_like_2,ln_prior_2,\
+        	loglargs=[x,y,e,w],threads=nthreads)
         
         # Burn-in
         print('starting burn-in')
@@ -596,8 +628,10 @@ if __name__ == "__main__":
         #Production
         sampler.reset()
         print('starting main mcmc chain')
-        # Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")  
+        '''# Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
+        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")  '''
+        # Run production stage of pt mcmc using run_ptmcmc_save function from mcmc_utils.py
+        sampler = run_ptmcmc_save(sampler,pos,nprod,"chain_prod.txt")
         '''
         stop parallelism
         pool.close()
@@ -607,12 +641,16 @@ if __name__ == "__main__":
         # LNPROB is in sampler.lnprobability and is shape (nwalkers, nsteps)
         # sampler.chain has shape (nwalkers, nsteps, npars)
         
-        # Create a chain (i.e. collect results from all walkers) using flatchain function
+        '''# Create a chain (i.e. collect results from all walkers) using flatchain function
         # from mcmc_utils.py
-        chain = flatchain(sampler.chain,npars,thin=10)
+        chain = flatchain(sampler.chain,npars,thin=10)'''
+        
+        # get chain for zero temp
+        # chain shape = (ntemps, nwalkers*nsteps, ndim)
+        chain = sampler.flatchain[0,...]     
         
         # Save flattened chain
-        np.savetxt('chain_flat.txt',chain,delimiter=' ')     
+        np.savetxt('chain_flat.txt',chain,delimiter=' ')
         
         # Print out individual parameters
         params = []
@@ -621,10 +659,10 @@ if __name__ == "__main__":
             lolim,best,uplim = np.percentile(par,[16,50,84])
             print("%s = %f +%f -%f" % (model.lookuptable[i],best,uplim-best,best-lolim))
             params.append(best)
-        if neclipses == 1:
+        '''if neclipses == 0:
             fig = thumbPlot(chain,model.lookuptable)
             fig.savefig('cornerPlot.pdf')
-            plt.close()
+            plt.close()'''
         # Update model with best parameters
         model.pars = params
     
