@@ -191,18 +191,20 @@ def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
             f.close()
     return sampler
     
-def run_ptmcmc_save(sampler,startPos,nSteps,file,**kwargs):
-    '''runs PT MCMC and saves zero temperature chain to file'''
-    if not os.path.exists(file):
+def run_ptmcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
+    '''runs PT MCMC and saves zero temperature chain to a file'''
+    if file:
         f = open(file,"w")
         f.close()
-
-    iStep = 0    
-    bar = tqdm(total=nSteps)
+    iStep = 0 
+    if progress:   
+        bar = tqdm(total=nSteps)
     for pos, prob, like in sampler.sample(startPos,iterations=nSteps,storechain=True,**kwargs):
+        if file:
+            f = open(file,"a")
         iStep += 1
-        bar.update()
-        f = open(file,"a")
+        if progress:
+            bar.update()
         # pos is shape (ntemps, nwalkers, npars)
         # prob is shape (ntemps, nwalkers)
         # loop over all walkers for zero temp and append to file
@@ -211,8 +213,10 @@ def run_ptmcmc_save(sampler,startPos,nSteps,file,**kwargs):
         for k in range(zpos.shape[0]):
             thisPos = zpos[k]
             thisProb = zprob[k]
-            f.write("{0:4d} {1:s} {2:f}\n".format(k," ".join(map(str,thisPos)),thisProb ))
-    f.close()
+            if file:
+               f.write("{0:4d} {1:s} {2:f}\n".format(k," ".join(map(str,thisPos)),thisProb ))
+        if file:
+            f.close()
     return sampler    
     
 def flatchain(chain,npars,nskip=0,thin=1):
