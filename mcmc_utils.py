@@ -131,30 +131,39 @@ def scatterWalkers(pos0,percentScatter):
     return pos0 + percentScatter*pos0*scatter/100.0
 
 def initialise_walkers(p,scatter,nwalkers,ntemps,ln_prior):
-    p0 = np.array([emcee.utils.sample_ball(p,scatter*p,size=nwalkers) for i in range(ntemps)])
-    p0_new = np.array(p0[0])
-    for p in p0[1:]:
-        p0_new = np.concatenate((p0_new,p),axis=0)
+    # Create starting ball of walkers with a certain amount of scatter
+    p0 = np.array([emcee.utils.sample_ball(p,scatter*p,size=nwalkers) for 
+                   i in range(ntemps)])
+    orig_shape = p0.shape
+    # Re-shape p0 array
+    p0 = p0.reshape(nwalkers*ntemps,len(p))
+    # Make initial number of invalid walkers equal to total number of walkers
     numInvalid = nwalkers*ntemps
-    print('Initialising walkers')
+    print('Initialising walkers...')
+    print('Number of walkers currently invalid:')
     # All invalid params need to be resampled
-    while numInvalid > (nwalkers*ntemps)/10:
+    while numInvalid > 0:
         # Create a mask of invalid params
-        isValid = np.array([np.isfinite(ln_prior(p)) for p in p0_new])
-        bad = p0_new[~isValid]
+        isValid = np.array([np.isfinite(ln_prior(p)) for p in p0])
+        bad = p0[~isValid]
+        # Determine the number of good and bad walkers
         nbad = len(bad)
         print(nbad)
-        # Find means and std dev for all valid params
-        means = p0_new[isValid].mean(axis=0)
-        stddevs = p0_new[isValid].std(axis=0)
-        # Sample from multivariate Gaussian with diagonal covariance matrix
-        cov = np.eye(len(p))*stddevs*scatter[0]*np.absolute(means)
-        newPos = np.random.multivariate_normal(means,cov,size=len(bad))
-        #replace old invalid positions values with new positions
-        p0_new[~isValid] = newPos
-        numInvalid = len(p0_new[~isValid])  
-    p0 = np.array(np.split(p0_new,ntemps,axis=0))
+        ngood = len(p0[isValid])
+        # Choose nbad random rows from ngood walker sample
+        replacement_rows = np.random.randint(ngood,size=nbad)
+        # Create replacement values from valid walkers
+        replacements = p0[isValid][replacement_rows]
+        # Add scatter to replacement values
+        replacements += 0.5*replacements*scatter*np.random.normal(size=replacements.shape)
+        # Replace invalid walkers with new values
+        p0[~isValid] = replacements
+        numInvalid = len(p0[~isValid])  
+    p0 = p0.reshape(orig_shape)
     return p0
+    
+np.random.choice
+np.random.randint  
     
 def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
     iStep = 0
@@ -191,7 +200,7 @@ def run_mcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
             f.close()
     return sampler
     
-def run_ptmcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
+def run_ptmcmc_save(sampler,startPos,nSteps,file,progress=True,**kwargs):
     '''runs PT MCMC and saves zero temperature chain to a file'''
     if file:
         f = open(file,"w")
@@ -200,8 +209,7 @@ def run_ptmcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
     if progress:   
         bar = tqdm(total=nSteps)
     for pos, prob, like in sampler.sample(startPos,iterations=nSteps,storechain=True,**kwargs):
-        if file:
-            f = open(file,"a")
+        f = open(file,"a")
         iStep += 1
         if progress:
             bar.update()
@@ -213,10 +221,8 @@ def run_ptmcmc_save(sampler,startPos,nSteps,rState,file,progress=True,**kwargs):
         for k in range(zpos.shape[0]):
             thisPos = zpos[k]
             thisProb = zprob[k]
-            if file:
-               f.write("{0:4d} {1:s} {2:f}\n".format(k," ".join(map(str,thisPos)),thisProb ))
-        if file:
-            f.close()
+            f.write("{0:4d} {1:s} {2:f}\n".format(k," ".join(map(str,thisPos)),thisProb ))
+        f.close()
     return sampler    
     
 def flatchain(chain,npars,nskip=0,thin=1):

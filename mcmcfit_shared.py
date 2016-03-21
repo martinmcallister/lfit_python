@@ -235,22 +235,6 @@ class LCModel(Model):
                 return -np.inf
         else:
             return lnp
-    
-    # Second ln_prior function that allows ln_prior of passed params to be calculated
-    def ln_prior_2(self,parList):
-    	self.pars = parList
-    	lnp = self.ln_prior()
-    	if np.isfinite(lnp):
-    		return lnp
-    	else:
-    		return -np.inf
-    	
-    def ln_like_2(self,parList,phi,y,e,width=None):
-    	self.pars = parList
-    	try:
-    		return self.ln_like(phi,y,e,width) 
-    	except:
-    		return -np.inf
     		
 class GPLCModel(LCModel):
     """CV lightcurve model for multiple eclipses, with added Gaussian process fitting"""
@@ -394,13 +378,6 @@ class GPLCModel(LCModel):
             # Calculate ln_like using lnlikelihood function from GaussianProcess.py             
             lnlike += gp.lnlikelihood(resids)         
         return lnlike
-        
-    def ln_like_2(self,parList,phi,y,e,width=None):
-    	self.pars = parList
-    	try:
-    		return self.ln_like(phi,y,e,width) 
-    	except:
-    		return -np.inf
                 
 def parseInput(file):
     """Splits input file up making it easier to read"""
@@ -549,6 +526,7 @@ if __name__ == "__main__":
         # Starting parameters	
         p0 = np.array(params) 
         
+        # CHANGE TO USE PARAMETER NAMES (SEE ALSO CORNERPLOT CODE)
         # Add scatter to starting parameters for first burnin
         p0_scatter_1 = []
         for p in range(0,len(p0)):
@@ -578,6 +556,7 @@ if __name__ == "__main__":
         		param_scatter = param_scatter/1e2
         	p0_scatter_2.append(param_scatter)
         p0_scatter_2 = np.array(p0_scatter_2)
+        
         '''
         BIZARRO WORLD!
         Calling the ln_prob function once outside of multiprocessing
@@ -590,15 +569,24 @@ if __name__ == "__main__":
         # print "initial ln probability = %.2f" % model.ln_prob(p0,x,y,e,w)
         
         # Wrapper function to access second ln_prior function in model
-        def ln_prior_2(parList):
-        	return model.ln_prior_2(parList)
+        def ln_prior(parList):
+        	model.pars = parList
+        	return model.ln_prior()
         	
-        def ln_like_2(parList,phi,y,e,width=None):
-        	return model.ln_like_2(parList,phi,y,e,width=None)
-        
+        def ln_like(parList,phi,y,e,width=None):
+        	model.pars = parList
+        	#return model.ln_like(phi,y,e,width=None)
+        	lnlike = model.ln_like(phi,y,e,width=None)
+        	print(lnlike)
+        	if np.isfinite(lnlike):
+        		return lnlike
+        	else:
+        		print(parList)
+        		return lnlike
+        	
         # Produce a ball of walkers around p0, ensuring all walker positions
         # are valid
-        p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ntemps,ln_prior_2)
+        p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ntemps,ln_prior)
         
         '''
         print 'probabilities of walker positions: '
@@ -610,7 +598,7 @@ if __name__ == "__main__":
         sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)'''
         
         # Instantiate Parallel-Tempering Ensemble sampler
-        sampler = emcee.PTSampler(ntemps,nwalkers,npars,ln_like_2,ln_prior_2,\
+        sampler = emcee.PTSampler(ntemps,nwalkers,npars,ln_like,ln_prior,\
         	loglargs=[x,y,e,w],threads=nthreads)
         
         # Burn-in
@@ -629,7 +617,7 @@ if __name__ == "__main__":
         sampler.reset()
         print('starting main mcmc chain')
         '''# Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")  '''
+        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt") '''
         # Run production stage of pt mcmc using run_ptmcmc_save function from mcmc_utils.py
         sampler = run_ptmcmc_save(sampler,pos,nprod,"chain_prod.txt")
         '''
@@ -651,7 +639,7 @@ if __name__ == "__main__":
         
         # Save flattened chain
         np.savetxt('chain_flat.txt',chain,delimiter=' ')
-        
+
         # Print out individual parameters
         params = []
         for i in range(npars):
