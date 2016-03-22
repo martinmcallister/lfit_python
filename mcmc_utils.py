@@ -130,7 +130,34 @@ def scatterWalkers(pos0,percentScatter):
     scatter = np.array([np.random.normal(size=npars) for i in xrange(nwalkers)])
     return pos0 + percentScatter*pos0*scatter/100.0
 
-def initialise_walkers(p,scatter,nwalkers,ntemps,ln_prior):
+def initialise_walkers(p,scatter,nwalkers,ln_prior):
+    # Create starting ball of walkers with a certain amount of scatter
+    p0 = emcee.utils.sample_ball(p,scatter*p,size=nwalkers)
+    # Make initial number of invalid walkers equal to total number of walkers
+    numInvalid = nwalkers
+    print('Initialising walkers...')
+    print('Number of walkers currently invalid:')
+    # All invalid params need to be resampled
+    while numInvalid > 0:
+        # Create a mask of invalid params
+        isValid = np.array([np.isfinite(ln_prior(p)) for p in p0])
+        bad = p0[~isValid]
+        # Determine the number of good and bad walkers
+        nbad = len(bad)
+        print(nbad)
+        ngood = len(p0[isValid])
+        # Choose nbad random rows from ngood walker sample
+        replacement_rows = np.random.randint(ngood,size=nbad)
+        # Create replacement values from valid walkers
+        replacements = p0[isValid][replacement_rows]
+        # Add scatter to replacement values
+        replacements += 0.5*replacements*scatter*np.random.normal(size=replacements.shape)
+        # Replace invalid walkers with new values
+        p0[~isValid] = replacements
+        numInvalid = len(p0[~isValid])
+    return p0
+
+def initialise_walkers_pt(p,scatter,nwalkers,ntemps,ln_prior):
     # Create starting ball of walkers with a certain amount of scatter
     p0 = np.array([emcee.utils.sample_ball(p,scatter*p,size=nwalkers) for 
                    i in range(ntemps)])
@@ -161,9 +188,6 @@ def initialise_walkers(p,scatter,nwalkers,ntemps,ln_prior):
         numInvalid = len(p0[~isValid])  
     p0 = p0.reshape(orig_shape)
     return p0
-    
-np.random.choice
-np.random.randint  
     
 def run_burnin(sampler,startPos,nSteps,storechain=False,progress=True):
     iStep = 0

@@ -142,8 +142,7 @@ class LCModel(Model):
                 if verbose:
                     print('Combination of q and dphi is invalid')
                 retVal += -np.inf
-            else:
-                retVal += dphi.prior.ln_prob(dphi.currVal)
+            
         except:
             # We get here when roche.findphi raises error - usually invalid q
             retVal += -np.inf
@@ -162,8 +161,7 @@ class LCModel(Model):
                 # rdisc cannot be greater than maxrdisc
                 if rdisc.currVal > maxrdisc:
                     retVal += -np.inf
-                else:
-                    retVal += rdisc.prior.ln_prob(rdisc.currVal)
+                
         except:
             # We get here when roche.findphi raises error - usually invalid q
             if verbose:
@@ -182,8 +180,6 @@ class LCModel(Model):
                 retVal += -np.inf
                 if verbose:
                     print('BS Scale is not between 1/3 and 3 times WD size')
-            else:
-                retVal += scale.prior.ln_prob(scale.currVal)
             
         #BS az
         slope = 80.0
@@ -209,25 +205,37 @@ class LCModel(Model):
                 # BS az must be within allowed range
                 if az.currVal < minaz or az.currVal > maxaz:
                     retVal += -np.inf
-                else:
-                    retVal += az.prior.ln_prob(az.currVal)
+
         except:
             if verbose:
                 print('Stream does not hit disc, or az is outside 80 degree tolerance')
             # We get here when roche.findphi raises error - usually invalid q
             retVal += -np.inf
             
+        # BS exponential parameters
+        # Total extent of bright spot is scale*(e1/e2)**(1/e2)
+        # Limit this to half an inner lagrangian distance
+        scaleTemplate = 'scale_{0}'
+        exp1Template = 'exp1_{0}'
+        exp2Template = 'exp2_{0}'
+        for iecl in range(self.necl):
+        	sc = self.getParam(scaleTemplate.format(iecl))
+        	e1 = self.getParam(exp1Template.format(iecl))
+        	e2 = self.getParam(exp2Template.format(iecl))
+        	if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
+        		retVal += -np.inf
+    
         return retVal
          
     def ln_like(self,phi,y,e,width=None):
         """Calculates the natural log of the likelihood"""
         return -0.5*self.chisq(phi,y,e,width)
         
-    def ln_prob(self,parList,phi,y,e,width=None):
+    def ln_prob(self,phi,y,e,width=None):
         """Calculates the natural log of the posterior probability (ln_prior + ln_like)"""
-        # The model is updated to reflect the passed parameters
-        self.pars = parList
+        # First calculate ln_prior
         lnp = self.ln_prior()
+        # Then add ln_prior to ln_like
         if np.isfinite(lnp):
             try:
                 return lnp + self.ln_like(phi,y,e,width)
@@ -372,7 +380,7 @@ class GPLCModel(LCModel):
                                 
             # Check for bugs in model
             if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-                print(warning.warn('model gave nan or inf answers'))
+                print(warnings.warn('model gave nan or inf answers'))
                 return -np.inf
                                 
             # Calculate ln_like using lnlikelihood function from GaussianProcess.py             
@@ -407,6 +415,7 @@ if __name__ == "__main__":
     neclipses = int(input_dict['neclipses'])
     complex   = bool(int(input_dict['complex']))
     useGP     = bool(int(input_dict['useGP']))
+    usePT	  = bool(int(input_dict['usePT']))
     
     # Read in GP params using fromString function from mcmc_utils.py
     ampin_gp = Param.fromString('ampin_gp', input_dict['ampin_gp'])
@@ -447,8 +456,28 @@ if __name__ == "__main__":
     # pickle cannot pickle methods of classes, so we wrap
     # the ln_prior, ln_like and ln_prob functions here to 
     # make something that can be pickled
+    def ln_prior(parList):
+        model.pars = parList
+        return model.ln_prior()
+        '''lnp = model.ln_prior()
+        if np.isfinite(lnp):
+        	return lnp
+        else:
+        	print(lnp)
+        	return lnp'''
+    def ln_like(parList,phi,y,e,width=None):
+        model.pars = parList
+        return model.ln_like(phi,y,e,width=None)
+        '''lnlike = model.ln_like(phi,y,e,width=None)
+        if np.isfinite(lnlike):
+        	return lnlike
+        else:
+        	print(lnlike)
+        	return lnlike'''
     def ln_prob(parList,phi,y,e,width=None):
-        return model.ln_prob(parList,phi,y,e,width=None)
+    	model.pars = parList
+        return model.ln_prob(phi,y,e,width=None)   
+            
     # Add in additional eclipses as necessary
     parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
         'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
@@ -493,11 +522,14 @@ if __name__ == "__main__":
         # running a verbose ln_prior checks invalid param combinations
         model.ln_prior(verbose=True)
         sys.exit(-1)
-      
+       
     # How many parameters?  
     npars = model.npars
     # Current values of all parameters
+    for par in model.pars:
+    	print(par.currVal)
     params = [par.currVal for par in model.pars]
+    print(params)
     
     # The following code will only run if option to fit has been selected in input file
     if toFit:
@@ -524,7 +556,7 @@ if __name__ == "__main__":
         	b = 3 
         
         # Starting parameters	
-        p0 = np.array(params) 
+        p0 = np.array(params)
         
         # CHANGE TO USE PARAMETER NAMES (SEE ALSO CORNERPLOT CODE)
         # Add scatter to starting parameters for first burnin
@@ -565,41 +597,27 @@ if __name__ == "__main__":
         in combination with the BLAS library (cho_factor uses this).
         
         http://stackoverflow.com/questions/19705200/multiprocessing-with-numpy-makes-python-quit-unexpectedly-on-osx
-        '''
-        # print "initial ln probability = %.2f" % model.ln_prob(p0,x,y,e,w)
         
-        # Wrapper function to access second ln_prior function in model
-        def ln_prior(parList):
-        	model.pars = parList
-        	return model.ln_prior()
-        	
-        def ln_like(parList,phi,y,e,width=None):
-        	model.pars = parList
-        	#return model.ln_like(phi,y,e,width=None)
-        	lnlike = model.ln_like(phi,y,e,width=None)
-        	print(lnlike)
-        	if np.isfinite(lnlike):
-        		return lnlike
-        	else:
-        		print(parList)
-        		return lnlike
-        	
-        # Produce a ball of walkers around p0, ensuring all walker positions
-        # are valid
-        p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ntemps,ln_prior)
+        print "initial ln probability = %.2f" % model.ln_prob(x,y,e,w)
         
-        '''
         print 'probabilities of walker positions: '
         for i, par in enumerate(p0):
-            print '%d = %.2f' % (i,model.ln_prob(par,x,y,e,w))
+            print '%d = %.2f' % (i,model.ln_prob(x,y,e,w))
         '''
         
-        '''# Instantiate Ensemble sampler
-        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)'''
-        
-        # Instantiate Parallel-Tempering Ensemble sampler
-        sampler = emcee.PTSampler(ntemps,nwalkers,npars,ln_like,ln_prior,\
-        	loglargs=[x,y,e,w],threads=nthreads)
+        if usePT:
+        	# Produce a ball of walkers around p0, ensuring all walker positions
+        	# are valid
+        	p0 = initialise_walkers_pt(p0,p0_scatter_1,nwalkers,ntemps,ln_prior)
+        	# Instantiate Parallel-Tempering Ensemble sampler
+        	sampler = emcee.PTSampler(ntemps,nwalkers,npars,ln_like,ln_prior,\
+        		loglargs=[x,y,e,w],threads=nthreads)
+        else:
+        	# Produce a ball of walkers around p0, ensuring all walker positions
+        	# are valid
+        	p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ln_prior)
+        	# Instantiate Ensemble sampler
+        	sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)
         
         # Burn-in
         print('starting burn-in')
@@ -616,29 +634,26 @@ if __name__ == "__main__":
         #Production
         sampler.reset()
         print('starting main mcmc chain')
-        '''# Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt") '''
-        # Run production stage of pt mcmc using run_ptmcmc_save function from mcmc_utils.py
-        sampler = run_ptmcmc_save(sampler,pos,nprod,"chain_prod.txt")
+        if usePT:
+        	# Run production stage of pt mcmc using run_ptmcmc_save function from mcmc_utils.py
+        	sampler = run_ptmcmc_save(sampler,pos,nprod,"chain_prod.txt")
+        	# get chain for zero temp, chain shape = (ntemps,nwalkers*nsteps,ndim)
+        	chain = sampler.flatchain[0,...] 
+        else:
+        	# Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
+        	sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")
+        	# lnprob is in sampler.lnprobability and is shape (nwalkers, nsteps)
+        	# sampler.chain has shape (nwalkers, nsteps, npars)
+        	# Create a chain (i.e. collect results from all walkers) using flatchain function
+        	# from mcmc_utils.py
+        	chain = flatchain(sampler.chain,npars,thin=10)
+        	# Save flattened chain
+        	np.savetxt('chain_flat.txt',chain,delimiter=' ')
+        	
         '''
         stop parallelism
         pool.close()
         '''
-        
-        #TODO: check if any values in the chain are INF, AND MASK OUT IF SO
-        # LNPROB is in sampler.lnprobability and is shape (nwalkers, nsteps)
-        # sampler.chain has shape (nwalkers, nsteps, npars)
-        
-        '''# Create a chain (i.e. collect results from all walkers) using flatchain function
-        # from mcmc_utils.py
-        chain = flatchain(sampler.chain,npars,thin=10)'''
-        
-        # get chain for zero temp
-        # chain shape = (ntemps, nwalkers*nsteps, ndim)
-        chain = sampler.flatchain[0,...]     
-        
-        # Save flattened chain
-        np.savetxt('chain_flat.txt',chain,delimiter=' ')
 
         # Print out individual parameters
         params = []
@@ -661,7 +676,11 @@ if __name__ == "__main__":
     print("Chisq          = %.2f (%d D.O.F)" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
     print("ln prior       = %.2f" % model.ln_prior())
     print("ln likelihood = %.2f" % model.ln_like(x,y,e,w))
-    print("ln probability = %.2f" % model.ln_prob(params,x,y,e,w))
+    print("ln probability = %.2f" % model.ln_prob(x,y,e,w))
+    print('\nFrom wrapper functions:\n')
+    print("ln prior       = %.2f" % ln_prior(params))
+    print("ln likelihood = %.2f" % ln_like(params,x,y,e,w))
+    print("ln probability = %.2f" % ln_prob(params,x,y,e,w))
     
     # Plot model & data
     # Use of gridspec to help with plotting
