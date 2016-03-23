@@ -211,25 +211,26 @@ class LCModel(Model):
                 print('Stream does not hit disc, or az is outside 80 degree tolerance')
             # We get here when roche.findphi raises error - usually invalid q
             retVal += -np.inf
-            
-        # BS exponential parameters
-        # Total extent of bright spot is scale*(e1/e2)**(1/e2)
-        # Limit this to half an inner lagrangian distance
-        scaleTemplate = 'scale_{0}'
-        exp1Template = 'exp1_{0}'
-        exp2Template = 'exp2_{0}'
-        for iecl in range(self.necl):
-        	sc = self.getParam(scaleTemplate.format(iecl))
-        	e1 = self.getParam(exp1Template.format(iecl))
-        	e2 = self.getParam(exp2Template.format(iecl))
-        	if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
-        		retVal += -np.inf
+           
+        if complex:
+        	# BS exponential parameters
+        	# Total extent of bright spot is scale*(e1/e2)**(1/e2)
+        	# Limit this to half an inner lagrangian distance
+        	scaleTemplate = 'scale_{0}'
+        	exp1Template = 'exp1_{0}'
+        	exp2Template = 'exp2_{0}'
+        	for iecl in range(self.necl):
+        		sc = self.getParam(scaleTemplate.format(iecl))
+        		e1 = self.getParam(exp1Template.format(iecl))
+        		e2 = self.getParam(exp2Template.format(iecl))
+        		if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
+        			retVal += -np.inf
     
         return retVal
          
     def ln_like(self,phi,y,e,width=None):
         """Calculates the natural log of the likelihood"""
-        return -0.5*self.chisq(phi,y,e,width)
+        return -0.5*self.chisq(phi,y,e,width=None)
         
     def ln_prob(self,phi,y,e,width=None):
         """Calculates the natural log of the posterior probability (ln_prior + ln_like)"""
@@ -238,7 +239,7 @@ class LCModel(Model):
         # Then add ln_prior to ln_like
         if np.isfinite(lnp):
             try:
-                return lnp + self.ln_like(phi,y,e,width)
+                return lnp + self.ln_like(phi,y,e,width=None)
             except:
                 return -np.inf
         else:
@@ -416,6 +417,8 @@ if __name__ == "__main__":
     complex   = bool(int(input_dict['complex']))
     useGP     = bool(int(input_dict['useGP']))
     usePT	  = bool(int(input_dict['usePT']))
+    corner	  = bool(int(input_dict['corner']))
+    double_burnin = bool(int(input_dict['double_burnin']))
     
     # Read in GP params using fromString function from mcmc_utils.py
     ampin_gp = Param.fromString('ampin_gp', input_dict['ampin_gp'])
@@ -526,10 +529,7 @@ if __name__ == "__main__":
     # How many parameters?  
     npars = model.npars
     # Current values of all parameters
-    for par in model.pars:
-    	print(par.currVal)
     params = [par.currVal for par in model.pars]
-    print(params)
     
     # The following code will only run if option to fit has been selected in input file
     if toFit:
@@ -544,50 +544,34 @@ if __name__ == "__main__":
             sys.exit(0)
         '''   
         
-        # Required for scatter array and fill-between region
-    	if complex == 1:
-        	a = 15
-    	else:
-        	a = 11
-        
-    	if useGP == 1:
-        	b = 6
-    	else:
-        	b = 3 
-        
         # Starting parameters	
         p0 = np.array(params)
+
+        # Create array of scatter values from input file	
+        p0_scatter_1 = np.array([scatter_1 for i in model.lookuptable])
+        # These values need altering for certain parameters
+    	for i in range(0,len(p0_scatter_1)):
+    		# Decrease dphi scatter by a factor of 100		
+    		if i == model.getIndex('dphi'):
+    			p0_scatter_1[i] *= 1e-2 
+    		for ecl in range(0,neclipses):
+    			# Decrease limb darkening scatter by a factor of 1000000
+    			if i == model.getIndex('ulimb_{0}'.format(ecl)):
+    				p0_scatter_1[i] *= 1e-6
+    			if complex:
+    				# Increase bs exponential params by a factor of 10
+    				if i == model.getIndex('exp1_{0}'.format(ecl)):
+    					p0_scatter_1[i] *= 1e1
+    				if i == model.getIndex('exp2_{0}'.format(ecl)):
+    					p0_scatter_1[i] *= 1e1
+    				# Increase bs yaw by a factor of 10
+    				if i == model.getIndex('yaw_{0}'.format(ecl)):
+    					p0_scatter_1[i] *= 1e1
+    	#print(p0_scatter_1)
         
-        # CHANGE TO USE PARAMETER NAMES (SEE ALSO CORNERPLOT CODE)
-        # Add scatter to starting parameters for first burnin
-        p0_scatter_1 = []
-        for p in range(0,len(p0)):
-        	param_scatter = scatter_1
-        	# Significantly decrease scatter for limb darkening params
-        	# and dphi
-        	if p == 7:
-        		param_scatter = param_scatter/1e6
-        	if (p-(a+b+5))%a == 0 and not p == 0 and not p == 8 and not p == 11:
-        		param_scatter = param_scatter/1e6
-        	if p == 5:
-        		param_scatter = param_scatter/1e2
-        	p0_scatter_1.append(param_scatter)
-        p0_scatter_1 = np.array(p0_scatter_1)
-        
-        # Add scatter to starting parameters for second burnin
-        p0_scatter_2 = []
-        for p in range(0,len(p0)):
-        	param_scatter = scatter_2
-        	# Significantly decrease scatter for limb darkening params
-        	# and dphi
-        	if p == 7:
-        		param_scatter = param_scatter/1e6
-        	if (p-(a+b+5))%a == 0 and not p == 0 and not p == 8 and not p == 11:
-        		param_scatter = param_scatter/1e6
-        	if p == 5:
-        		param_scatter = param_scatter/1e2
-        	p0_scatter_2.append(param_scatter)
-        p0_scatter_2 = np.array(p0_scatter_2)
+        # Create second scatter array for second burnin
+        p0_scatter_2 = p0_scatter_1*(scatter_2/scatter_1)
+        #print(p0_scatter_2)
         
         '''
         BIZARRO WORLD!
@@ -624,12 +608,13 @@ if __name__ == "__main__":
         # Run burn-in stage of mcmc using run_burnin function from mcmc_utils.py
         pos, prob, state = run_burnin(sampler,p0,nburn)
         
-        '''# Run second burn-in stage, scattered around best fit of previous burn-in
-        # DFM (emcee creator) reports this can help convergence in difficult cases
-        print('starting second burn-in')
-        p0 = pos[np.argmax(prob)]
-        p0 = initialise_walkers(p0,p0_scatter_2,nwalkers,ln_prior)
-        pos, prob, state = run_burnin(sampler,p0,nburn)'''
+        if double_burnin:
+        	# Run second burn-in stage (if requested), scattered around best fit of previous burn-in
+        	# DFM (emcee creator) reports this can help convergence in difficult cases
+        	print('starting second burn-in')
+        	p0 = pos[np.argmax(prob)]
+        	p0 = initialise_walkers(p0,p0_scatter_2,nwalkers,ln_prior)
+        	pos, prob, state = run_burnin(sampler,p0,nburn)
 
         #Production
         sampler.reset()
@@ -655,21 +640,29 @@ if __name__ == "__main__":
         pool.close()
         '''
 
-        # Print out individual parameters
+        # Print out and save individual parameters to file
+        f = open("modparams.txt","w")
+        f.close()
         params = []
         for i in range(npars):
             par = chain[:,i]
             lolim,best,uplim = np.percentile(par,[16,50,84])
             print("%s = %f +%f -%f" % (model.lookuptable[i],best,uplim-best,best-lolim))
+            f = open("modparams.txt","a")
+            f.write("%s = %f +%f -%f\n" % (model.lookuptable[i],best,uplim-best,best-lolim))
+            f.close()
             params.append(best)
-        '''if neclipses == 0:
-            fig = thumbPlot(chain,model.lookuptable)
-            fig.savefig('cornerPlot.pdf')
-            plt.close()'''
+        # Plot cornerplot
+        if corner:
+        	for iecl = 0:
+            	fig = thumbPlot(chain,model.lookuptable)
+            	fig.savefig('cornerPlot.pdf')
+            	plt.close()
         # Update model with best parameters
         model.pars = params
     
-    # Print out chisq, ln prior, ln likelihood and ln probability for the model                 
+    # Print out chisq, ln prior, ln likelihood and ln probability for the model
+                    
     print('\nFor this model:\n')
     # Size of data required in order to calculate degrees of freedom (D.O.F)
     dataSize = np.sum((xa.size for xa in x))
@@ -681,6 +674,18 @@ if __name__ == "__main__":
     print("ln prior       = %.2f" % ln_prior(params))
     print("ln likelihood = %.2f" % ln_like(params,x,y,e,w))
     print("ln probability = %.2f" % ln_prob(params,x,y,e,w))
+    
+    # Save these to file
+    if toFit:
+    	f = open("modparams.txt","a")
+    else:
+    	f = open("modparams.txt","w")
+    f.write("\nFor this model:\n\n")
+    f.write("Chisq          = %.2f (%d D.O.F)\n" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
+    f.write("ln prior       = %.2f\n" % model.ln_prior())
+    f.write("ln likelihood = %.2f\n" % model.ln_like(x,y,e,w))
+    f.write("ln probability = %.2f\n" % model.ln_prob(x,y,e,w))
+    f.close()
     
     # Plot model & data
     # Use of gridspec to help with plotting
@@ -721,7 +726,18 @@ if __name__ == "__main__":
             # Plot GP
             ax1.plot(xf,yf+fmu,color='r',linestyle='--',alpha=0.75)
             
-            
+            # CHANGE THIS PART OF CODE, USE MODEL.LOOKUPTABLE INSTEAD          
+            # Required for fill-between region
+            if complex == 1:
+                a = 15
+            else:
+                a = 11
+        
+            if useGP == 1:
+                b = 6
+            else:
+                b = 3 
+                
             if toFit:
                 # Plot fill-between region
                 # Read chain
