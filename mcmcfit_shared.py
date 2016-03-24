@@ -558,20 +558,24 @@ if __name__ == "__main__":
     			# Decrease limb darkening scatter by a factor of 1000000
     			if i == model.getIndex('ulimb_{0}'.format(ecl)):
     				p0_scatter_1[i] *= 1e-6
+    			# Increase bs scale by a factor of 5
+    			if i == model.getIndex('scale_{0}'.format(ecl)):
+    				p0_scatter_1[i] *= 5
+    			# Increase disc exp by a factor of 5
+    			if i == model.getIndex('dexp_{0}'.format(ecl)):
+    				p0_scatter_1[i] *= 5	
     			if complex:
-    				# Increase bs exponential params by a factor of 10
+    				# Increase bs exponential params by a factor of 5
     				if i == model.getIndex('exp1_{0}'.format(ecl)):
-    					p0_scatter_1[i] *= 1e1
+    					p0_scatter_1[i] *= 5
     				if i == model.getIndex('exp2_{0}'.format(ecl)):
-    					p0_scatter_1[i] *= 1e1
+    					p0_scatter_1[i] *= 5
     				# Increase bs yaw by a factor of 10
     				if i == model.getIndex('yaw_{0}'.format(ecl)):
     					p0_scatter_1[i] *= 1e1
-    	#print(p0_scatter_1)
         
         # Create second scatter array for second burnin
         p0_scatter_2 = p0_scatter_1*(scatter_2/scatter_1)
-        #print(p0_scatter_2)
         
         '''
         BIZARRO WORLD!
@@ -652,12 +656,20 @@ if __name__ == "__main__":
             f.write("%s = %f +%f -%f\n" % (model.lookuptable[i],best,uplim-best,best-lolim))
             f.close()
             params.append(best)
-        # Plot cornerplot
+        # Plot cornerplot (include only shared and 1st eclipse parameters)
         if corner:
-        	for iecl = 0:
-            	fig = thumbPlot(chain,model.lookuptable)
-            	fig.savefig('cornerPlot.pdf')
-            	plt.close()
+            # First extract shared and 1st eclipse parameters from chain
+            if complex:
+                pars_cp = 18
+            else:
+                pars_cp = 14
+            if useGP:
+                pars_cp += 3
+            chain_cp = chain[:,0:pars_cp] 
+            # Create corner plot
+            fig = thumbPlot(chain_cp,model.lookuptable[0:pars_cp])
+            fig.savefig('cornerPlot.pdf')
+            plt.close()
         # Update model with best parameters
         model.pars = params
     
@@ -725,88 +737,55 @@ if __name__ == "__main__":
         if useGP:
             # Plot GP
             ax1.plot(xf,yf+fmu,color='r',linestyle='--',alpha=0.75)
-            
-            # CHANGE THIS PART OF CODE, USE MODEL.LOOKUPTABLE INSTEAD          
-            # Required for fill-between region
-            if complex == 1:
-                a = 15
-            else:
-                a = 11
-        
-            if useGP == 1:
-                b = 6
-            else:
-                b = 3 
-                
+                      
+            # Plot fill-between region
             if toFit:
-                # Plot fill-between region
-                # Read chain
-                if iecl == 0:
-                    wdFlux = chain[:,0]
-                    dFlux = chain[:,1]
-                    sFlux = chain[:,2]
-                    rsFlux = chain[:,3]
-                    q = chain[:,4]
-                    dphi = chain[:,5]
-                    rdisc = chain[:,6]
-                    ulimb = chain[:,7]
-                    rwd = chain[:,8]
-                    scale = chain[:,9]
-                    az = chain[:,10]
-                    fis = chain[:,11]
-                    dexp = chain[:,12]
-                    phi0 = chain[:,13]
-                    if complex:
-                        exp1 = chain[:,14]
-                        exp2 = chain[:,15]
-                        tilt = chain[:,16]
-                        yaw = chain[:,17]
-                else:
-                    i = a*iecl + b
-                    wdFlux = chain[:,i]
-                    dFlux = chain[:,i+1]
-                    sFlux = chain[:,i+2]
-                    rsFlux = chain[:,i+3]
-                    q = chain[:,4]
-                    dphi = chain[:,5]
-                    rdisc = chain[:,i+4]
-                    ulimb = chain[:,i+5]
-                    rwd = chain[:,8]
-                    scale = chain[:,i+6]
-                    az = chain[:,i+7]
-                    fis = chain[:,i+8]
-                    dexp = chain[:,i+9]
-                    phi0 = chain[:,i+10]
-                    if complex:
-                        exp1 = chain[:,i+11]
-                        exp2 = chain[:,i+12]
-                        tilt = chain[:,i+13]
-                        yaw = chain[:,i+14]
-       
-                # Create array of 100 random numbers
-                random_sample = np.random.randint(0,len(wdFlux),1000)
+        		# Read chain
+        		# First few lines used to determine number of parameters
+            	if complex:
+                	pars_fill = 15
+            	else:
+                	pars_fill = 11
+            	pars_fill_e1 = pars_fill + 3
+            	if useGP:
+                	pars_fill_e1 += 3
+            	if iecl == 0:
+            		# Read parameters of first eclipse from chain
+                	pars = chain[:,0:pars_fill_e1-3]
+            	else:
+            		# Parameters from additional eclipses are a little trickier
+            		# to read from chain
+                	pars_1 = chain[:,pars_fill_e1+pars_fill*(iecl-1):pars_fill_e1+pars_fill*(iecl-1)+4]
+                	pars_2 = chain[:,4:6]
+                	pars_3 = chain[:,pars_fill_e1+pars_fill*(iecl-1)+4:pars_fill_e1+pars_fill*(iecl-1)+6]
+                	pars_4 = chain[:,8]
+                	pars_5 = chain[:,pars_fill_e1+pars_fill*(iecl-1)+6:pars_fill_e1+pars_fill*iecl]
+                	pars = []
+                	for i in range(0,len(pars_1)):
+                    	new_pars = np.append(pars_1[i],pars_2[i])
+                    	new_pars = np.append(new_pars,pars_3[i])
+                    	new_pars = np.append(new_pars,pars_4[i])
+                    	new_pars = np.append(new_pars,pars_5[i])
+                    	pars.append(new_pars)
+                	pars = np.array(pars)
+                    
+            	# Create array of 1000 random numbers
+            	random_sample = np.random.randint(0,len(pars[0:]),1000)
                 
-                lcs = []
-        
-                for i in random_sample:
-                    pars = [wdFlux[i],dFlux[i],sFlux[i],rsFlux[i],q[i],dphi[i],rdisc[i], \
-                        ulimb[i],rwd[i],scale[i],az[i],fis[i],dexp[i],phi0[i]]
-                    if complex:
-                        pars.extend([exp1[i],exp2[i],tilt[i],yaw[i]])
+            	lcs = []
+            	for i in random_sample:
+                	CV = lfit.CV(pars[i])
                 
-                    CV = lfit.CV(pars)
+                	xf_2 = np.linspace(xp.min(),xp.max(),1000)
+                	wf_2 = 0.5*np.mean(np.diff(xf_2))*np.ones_like(xf_2)
+                	yf_2 = CV.calcFlux(pars[i],xf_2,wf_2)
+                	lcs.append(yf_2)
                 
-                    xf_2 = np.linspace(xp.min(),xp.max(),1000)
-                    wf_2 = 0.5*np.mean(np.diff(xf_2))*np.ones_like(xf_2)
-                    yf_2 = CV.calcFlux(pars,xf_2,wf_2)
-                    lcs.append(yf_2)
-                
-                #print lcs
-                # To plot filled area    
-                lcs = np.array(lcs)
-                mu_2 = lcs.mean(axis=0)
-                std_2 = lcs.std(axis=0)
-                plt.fill_between(xf_2,mu_2+std_2,mu_2-std_2,color='b',alpha=0.2)
+            	# Plot filled area    
+            	lcs = np.array(lcs)
+            	mu_2 = lcs.mean(axis=0)
+            	std_2 = lcs.std(axis=0)
+            	plt.fill_between(xf_2,mu_2+std_2,mu_2-std_2,color='b',alpha=0.2)
             
         # Data
         ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.5)
