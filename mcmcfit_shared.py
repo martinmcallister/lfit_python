@@ -213,24 +213,24 @@ class LCModel(Model):
             retVal += -np.inf
            
         if complex:
-        	# BS exponential parameters
-        	# Total extent of bright spot is scale*(e1/e2)**(1/e2)
-        	# Limit this to half an inner lagrangian distance
-        	scaleTemplate = 'scale_{0}'
-        	exp1Template = 'exp1_{0}'
-        	exp2Template = 'exp2_{0}'
-        	for iecl in range(self.necl):
-        		sc = self.getParam(scaleTemplate.format(iecl))
-        		e1 = self.getParam(exp1Template.format(iecl))
-        		e2 = self.getParam(exp2Template.format(iecl))
-        		if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
-        			retVal += -np.inf
+            # BS exponential parameters
+            # Total extent of bright spot is scale*(e1/e2)**(1/e2)
+            # Limit this to half an inner lagrangian distance
+            scaleTemplate = 'scale_{0}'
+            exp1Template = 'exp1_{0}'
+            exp2Template = 'exp2_{0}'
+            for iecl in range(self.necl):
+                sc = self.getParam(scaleTemplate.format(iecl))
+                e1 = self.getParam(exp1Template.format(iecl))
+                e2 = self.getParam(exp2Template.format(iecl))
+                if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
+                    retVal += -np.inf
     
         return retVal
          
     def ln_like(self,phi,y,e,width=None):
         """Calculates the natural log of the likelihood"""
-        return -0.5*self.chisq(phi,y,e,width=None)
+        return -0.5*self.chisq(phi,y,e,width)
         
     def ln_prob(self,phi,y,e,width=None):
         """Calculates the natural log of the posterior probability (ln_prior + ln_like)"""
@@ -239,12 +239,12 @@ class LCModel(Model):
         # Then add ln_prior to ln_like
         if np.isfinite(lnp):
             try:
-                return lnp + self.ln_like(phi,y,e,width=None)
+                return lnp + self.ln_like(phi,y,e,width)
             except:
                 return -np.inf
         else:
             return lnp
-    		
+            
 class GPLCModel(LCModel):
     """CV lightcurve model for multiple eclipses, with added Gaussian process fitting"""
     
@@ -334,7 +334,7 @@ class GPLCModel(LCModel):
         ampout = np.exp(ln_ampout.currVal)
         tau = np.exp(ln_tau.currVal)
        
-        '''# Calculate kernels for both out of and in eclipse WD eclipse
+        # Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has smaller amplitude than that of outside eclipse,
         k_in  = ampin*GP.Matern32Kernel(tau)
         k_out = ampout*GP.Matern32Kernel(tau)
@@ -348,16 +348,16 @@ class GPLCModel(LCModel):
             kernel_struc.append(k_out)
         
         # Create kernel with changepoints 
-        kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)'''
+        kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
         
-        k1 = GP.Matern32Kernel(tau)
+        '''k1 = GP.Matern32Kernel(tau)
         
         gp_pars = np.array([ampout,ampin,ampout])
         changepoints = self.calcChangepoints(phi)
         
         k2 = GP.OutputScaleChangePointKernel(gp_pars,changepoints)
         
-        kernel = k1*k2
+        kernel = k1*k2'''
         
         # Create GPs using this kernel
         gp = GP.GaussianProcess(kernel)
@@ -381,7 +381,7 @@ class GPLCModel(LCModel):
                                 
             # Check for bugs in model
             if np.any(np.isinf(resids)) or np.any(np.isnan(resids)):
-                print(warnings.warn('model gave nan or inf answers'))
+                warnings.warn('model gave nan or inf answers')
                 return -np.inf
                                 
             # Calculate ln_like using lnlikelihood function from GaussianProcess.py             
@@ -409,16 +409,17 @@ if __name__ == "__main__":
     nprod     = int(input_dict['nprod'])
     nthreads  = int(input_dict['nthread'])
     nwalkers  = int(input_dict['nwalkers'])
-    ntemps	  = int(input_dict['ntemps'])
+    ntemps    = int(input_dict['ntemps'])
     scatter_1   = float(input_dict['first_scatter'])
     scatter_2   = float(input_dict['second_scatter'])
     toFit     = int(input_dict['fit'])
     neclipses = int(input_dict['neclipses'])
     complex   = bool(int(input_dict['complex']))
     useGP     = bool(int(input_dict['useGP']))
-    usePT	  = bool(int(input_dict['usePT']))
-    corner	  = bool(int(input_dict['corner']))
+    usePT     = bool(int(input_dict['usePT']))
+    corner    = bool(int(input_dict['corner']))
     double_burnin = bool(int(input_dict['double_burnin']))
+    comp_scat   = bool(int(input_dict['comp_scat']))
     
     # Read in GP params using fromString function from mcmc_utils.py
     ampin_gp = Param.fromString('ampin_gp', input_dict['ampin_gp'])
@@ -462,24 +463,19 @@ if __name__ == "__main__":
     def ln_prior(parList):
         model.pars = parList
         return model.ln_prior()
-        '''lnp = model.ln_prior()
-        if np.isfinite(lnp):
-        	return lnp
-        else:
-        	print(lnp)
-        	return lnp'''
     def ln_like(parList,phi,y,e,width=None):
         model.pars = parList
-        return model.ln_like(phi,y,e,width=None)
-        '''lnlike = model.ln_like(phi,y,e,width=None)
+        #return model.ln_like(phi,y,e,width)
+        lnlike = model.ln_like(phi,y,e,width)
         if np.isfinite(lnlike):
         	return lnlike
         else:
+        	print(parList)
         	print(lnlike)
-        	return lnlike'''
+        	return lnlike
     def ln_prob(parList,phi,y,e,width=None):
-    	model.pars = parList
-        return model.ln_prob(phi,y,e,width=None)   
+        model.pars = parList
+        return model.ln_prob(phi,y,e,width) 
             
     # Add in additional eclipses as necessary
     parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
@@ -544,35 +540,37 @@ if __name__ == "__main__":
             sys.exit(0)
         '''   
         
-        # Starting parameters	
+        # Starting parameters   
         p0 = np.array(params)
 
-        # Create array of scatter values from input file	
+        # Create array of scatter values from input file    
         p0_scatter_1 = np.array([scatter_1 for i in model.lookuptable])
-        # These values need altering for certain parameters
-    	for i in range(0,len(p0_scatter_1)):
-    		# Decrease dphi scatter by a factor of 100		
-    		if i == model.getIndex('dphi'):
-    			p0_scatter_1[i] *= 1e-2 
-    		for ecl in range(0,neclipses):
-    			# Decrease limb darkening scatter by a factor of 1000000
-    			if i == model.getIndex('ulimb_{0}'.format(ecl)):
-    				p0_scatter_1[i] *= 1e-6
-    			# Increase bs scale by a factor of 5
-    			if i == model.getIndex('scale_{0}'.format(ecl)):
-    				p0_scatter_1[i] *= 5
-    			# Increase disc exp by a factor of 5
-    			if i == model.getIndex('dexp_{0}'.format(ecl)):
-    				p0_scatter_1[i] *= 5	
-    			if complex:
-    				# Increase bs exponential params by a factor of 5
-    				if i == model.getIndex('exp1_{0}'.format(ecl)):
-    					p0_scatter_1[i] *= 5
-    				if i == model.getIndex('exp2_{0}'.format(ecl)):
-    					p0_scatter_1[i] *= 5
-    				# Increase bs yaw by a factor of 10
-    				if i == model.getIndex('yaw_{0}'.format(ecl)):
-    					p0_scatter_1[i] *= 1e1
+        # In certain cases, scatter needs to vary between parameters
+        if comp_scat:
+            # Scatter values need altering for certain parameters
+            for i in range(0,len(p0_scatter_1)):
+                # Decrease dphi scatter by a factor of 100      
+                if i == model.getIndex('dphi'):
+                    p0_scatter_1[i] *= 1e-2 
+                for ecl in range(0,neclipses):
+                    # Decrease limb darkening scatter by a factor of 1000000
+                    if i == model.getIndex('ulimb_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 1e-6
+                    # Increase bs scale by a factor of 5
+                    if i == model.getIndex('scale_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 5
+                    # Increase disc exp by a factor of 5
+                    if i == model.getIndex('dexp_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 5    
+                    if complex:
+                        # Increase bs exponential params by a factor of 5
+                        if i == model.getIndex('exp1_{0}'.format(ecl)):
+                            p0_scatter_1[i] *= 5
+                        if i == model.getIndex('exp2_{0}'.format(ecl)):
+                            p0_scatter_1[i] *= 5
+                        # Increase bs yaw by a factor of 10
+                        if i == model.getIndex('yaw_{0}'.format(ecl)):
+                            p0_scatter_1[i] *= 1e1
         
         # Create second scatter array for second burnin
         p0_scatter_2 = p0_scatter_1*(scatter_2/scatter_1)
@@ -594,18 +592,18 @@ if __name__ == "__main__":
         '''
         
         if usePT:
-        	# Produce a ball of walkers around p0, ensuring all walker positions
-        	# are valid
-        	p0 = initialise_walkers_pt(p0,p0_scatter_1,nwalkers,ntemps,ln_prior)
-        	# Instantiate Parallel-Tempering Ensemble sampler
-        	sampler = emcee.PTSampler(ntemps,nwalkers,npars,ln_like,ln_prior,\
-        		loglargs=[x,y,e,w],threads=nthreads)
+            # Produce a ball of walkers around p0, ensuring all walker positions
+            # are valid
+            p0 = initialise_walkers_pt(p0,p0_scatter_1,nwalkers,ntemps,ln_prior)
+            # Instantiate Parallel-Tempering Ensemble sampler
+            sampler = emcee.PTSampler(ntemps,nwalkers,npars,ln_like,ln_prior,\
+                loglargs=[x,y,e],threads=nthreads)
         else:
-        	# Produce a ball of walkers around p0, ensuring all walker positions
-        	# are valid
-        	p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ln_prior)
-        	# Instantiate Ensemble sampler
-        	sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e,w],threads=nthreads)
+            # Produce a ball of walkers around p0, ensuring all walker positions
+            # are valid
+            p0 = initialise_walkers(p0,p0_scatter_1,nwalkers,ln_prior)
+            # Instantiate Ensemble sampler
+            sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[x,y,e],threads=nthreads)
         
         # Burn-in
         print('starting burn-in')
@@ -613,32 +611,32 @@ if __name__ == "__main__":
         pos, prob, state = run_burnin(sampler,p0,nburn)
         
         if double_burnin:
-        	# Run second burn-in stage (if requested), scattered around best fit of previous burn-in
-        	# DFM (emcee creator) reports this can help convergence in difficult cases
-        	print('starting second burn-in')
-        	p0 = pos[np.argmax(prob)]
-        	p0 = initialise_walkers(p0,p0_scatter_2,nwalkers,ln_prior)
-        	pos, prob, state = run_burnin(sampler,p0,nburn)
+            # Run second burn-in stage (if requested), scattered around best fit of previous burn-in
+            # DFM (emcee creator) reports this can help convergence in difficult cases
+            print('starting second burn-in')
+            p0 = pos[np.argmax(prob)]
+            p0 = initialise_walkers(p0,p0_scatter_2,nwalkers,ln_prior)
+            pos, prob, state = run_burnin(sampler,p0,nburn)
 
         #Production
         sampler.reset()
         print('starting main mcmc chain')
         if usePT:
-        	# Run production stage of pt mcmc using run_ptmcmc_save function from mcmc_utils.py
-        	sampler = run_ptmcmc_save(sampler,pos,nprod,"chain_prod.txt")
-        	# get chain for zero temp, chain shape = (ntemps,nwalkers*nsteps,ndim)
-        	chain = sampler.flatchain[0,...] 
+            # Run production stage of pt mcmc using run_ptmcmc_save function from mcmc_utils.py
+            sampler = run_ptmcmc_save(sampler,pos,nprod,"chain_prod.txt")
+            # get chain for zero temp, chain shape = (ntemps,nwalkers*nsteps,ndim)
+            chain = sampler.flatchain[0,...] 
         else:
-        	# Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
-        	sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")
-        	# lnprob is in sampler.lnprobability and is shape (nwalkers, nsteps)
-        	# sampler.chain has shape (nwalkers, nsteps, npars)
-        	# Create a chain (i.e. collect results from all walkers) using flatchain function
-        	# from mcmc_utils.py
-        	chain = flatchain(sampler.chain,npars,thin=10)
-        	# Save flattened chain
-        	np.savetxt('chain_flat.txt',chain,delimiter=' ')
-        	
+            # Run production stage of mcmc using run_mcmc_save function from mcmc_utils.py
+            sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_prod.txt")
+            # lnprob is in sampler.lnprobability and is shape (nwalkers, nsteps)
+            # sampler.chain has shape (nwalkers, nsteps, npars)
+            # Create a chain (i.e. collect results from all walkers) using flatchain function
+            # from mcmc_utils.py
+            chain = flatchain(sampler.chain,npars,thin=10)
+            # Save flattened chain
+            np.savetxt('chain_flat.txt',chain,delimiter=' ')
+            
         '''
         stop parallelism
         pool.close()
@@ -673,8 +671,7 @@ if __name__ == "__main__":
         # Update model with best parameters
         model.pars = params
     
-    # Print out chisq, ln prior, ln likelihood and ln probability for the model
-                    
+    # Print out chisq, ln prior, ln likelihood and ln probability for the model                
     print('\nFor this model:\n')
     # Size of data required in order to calculate degrees of freedom (D.O.F)
     dataSize = np.sum((xa.size for xa in x))
@@ -689,9 +686,9 @@ if __name__ == "__main__":
     
     # Save these to file
     if toFit:
-    	f = open("modparams.txt","a")
+        f = open("modparams.txt","a")
     else:
-    	f = open("modparams.txt","w")
+        f = open("modparams.txt","w")
     f.write("\nFor this model:\n\n")
     f.write("Chisq          = %.2f (%d D.O.F)\n" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
     f.write("ln prior       = %.2f\n" % model.ln_prior())
@@ -740,52 +737,52 @@ if __name__ == "__main__":
                       
             # Plot fill-between region
             if toFit:
-        		# Read chain
-        		# First few lines used to determine number of parameters
-            	if complex:
-                	pars_fill = 15
-            	else:
-                	pars_fill = 11
-            	pars_fill_e1 = pars_fill + 3
-            	if useGP:
-                	pars_fill_e1 += 3
-            	if iecl == 0:
-            		# Read parameters of first eclipse from chain
-                	pars = chain[:,0:pars_fill_e1-3]
-            	else:
-            		# Parameters from additional eclipses are a little trickier
-            		# to read from chain
-                	pars_1 = chain[:,pars_fill_e1+pars_fill*(iecl-1):pars_fill_e1+pars_fill*(iecl-1)+4]
-                	pars_2 = chain[:,4:6]
-                	pars_3 = chain[:,pars_fill_e1+pars_fill*(iecl-1)+4:pars_fill_e1+pars_fill*(iecl-1)+6]
-                	pars_4 = chain[:,8]
-                	pars_5 = chain[:,pars_fill_e1+pars_fill*(iecl-1)+6:pars_fill_e1+pars_fill*iecl]
-                	pars = []
-                	for i in range(0,len(pars_1)):
-                    	new_pars = np.append(pars_1[i],pars_2[i])
-                    	new_pars = np.append(new_pars,pars_3[i])
-                    	new_pars = np.append(new_pars,pars_4[i])
-                    	new_pars = np.append(new_pars,pars_5[i])
-                    	pars.append(new_pars)
-                	pars = np.array(pars)
+                # Read chain
+                # First few lines used to determine number of parameters
+                if complex:
+                    pars_fill = 15
+                else:
+                    pars_fill = 11
+                pars_fill_e1 = pars_fill + 3
+                if useGP:
+                    pars_fill_e1 += 3
+                if iecl == 0:
+                    # Read parameters of first eclipse from chain
+                    pars = chain[:,0:pars_fill_e1-3]
+                else:
+                    # Parameters from additional eclipses are a little trickier
+                    # to read from chain
+                    pars_1 = chain[:,pars_fill_e1+pars_fill*(iecl-1):pars_fill_e1+pars_fill*(iecl-1)+4]
+                    pars_2 = chain[:,4:6]
+                    pars_3 = chain[:,pars_fill_e1+pars_fill*(iecl-1)+4:pars_fill_e1+pars_fill*(iecl-1)+6]
+                    pars_4 = chain[:,8]
+                    pars_5 = chain[:,pars_fill_e1+pars_fill*(iecl-1)+6:pars_fill_e1+pars_fill*iecl]
+                    pars = []
+                    for i in range(0,len(pars_1)):
+                        new_pars = np.append(pars_1[i],pars_2[i])
+                        new_pars = np.append(new_pars,pars_3[i])
+                        new_pars = np.append(new_pars,pars_4[i])
+                        new_pars = np.append(new_pars,pars_5[i])
+                        pars.append(new_pars)
+                    pars = np.array(pars)
                     
-            	# Create array of 1000 random numbers
-            	random_sample = np.random.randint(0,len(pars[0:]),1000)
+                # Create array of 1000 random numbers
+                random_sample = np.random.randint(0,len(pars[0:]),1000)
                 
-            	lcs = []
-            	for i in random_sample:
-                	CV = lfit.CV(pars[i])
+                lcs = []
+                for i in random_sample:
+                    CV = lfit.CV(pars[i])
                 
-                	xf_2 = np.linspace(xp.min(),xp.max(),1000)
-                	wf_2 = 0.5*np.mean(np.diff(xf_2))*np.ones_like(xf_2)
-                	yf_2 = CV.calcFlux(pars[i],xf_2,wf_2)
-                	lcs.append(yf_2)
+                    xf_2 = np.linspace(xp.min(),xp.max(),1000)
+                    wf_2 = 0.5*np.mean(np.diff(xf_2))*np.ones_like(xf_2)
+                    yf_2 = CV.calcFlux(pars[i],xf_2,wf_2)
+                    lcs.append(yf_2)
                 
-            	# Plot filled area    
-            	lcs = np.array(lcs)
-            	mu_2 = lcs.mean(axis=0)
-            	std_2 = lcs.std(axis=0)
-            	plt.fill_between(xf_2,mu_2+std_2,mu_2-std_2,color='b',alpha=0.2)
+                # Plot filled area    
+                lcs = np.array(lcs)
+                mu_2 = lcs.mean(axis=0)
+                std_2 = lcs.std(axis=0)
+                plt.fill_between(xf_2,mu_2+std_2,mu_2-std_2,color='b',alpha=0.2)
             
         # Data
         ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.5)
@@ -808,5 +805,8 @@ if __name__ == "__main__":
         
         # Save plot images
         plt.savefig(output_plots[iecl])
-        plt.show()
+        if toFit and useGP:
+            plt.close()
+        else:
+            plt.show()
      

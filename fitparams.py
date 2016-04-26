@@ -135,7 +135,7 @@ if __name__ == "__main__":
                  Param('a',r'${\rm Separation\ } (R_{\odot})$',5),
                  Param('kw',r'$K_w ({\rm km\ s}^{-1})$',6),
                  Param('kr',r'$K_d ({\rm km\ s}^{-1})$',7),
-         Param('logg',r'${\rm log} g$',99)]
+                 Param('logg',r'${\rm log\ g\ }$',9)]
 
     while True:
         mode = raw_input('(S)ingle dataset or (M)ultiple datasets? ')
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         cornerplot.savefig('cornerPlot.pdf')
         i = 0
         for param in paramList:
-            if param.index > 10:
+            if param.index > 8:
                 continue
             array=dataIn[:,param.index]         
             pars = fitSkewedGaussian(array)
@@ -203,7 +203,7 @@ if __name__ == "__main__":
             minX = 1.0e32
             maxX = -1.0e32
             for i in range(numSets):
-                if param.index < 10:
+                if param.index < 9:
                     array = numpy.array(dataList[i][:,param.index],dtype='float64')
                 else:
                     m = numpy.array(dataList[i][:,paramList[1].index],dtype='float64')

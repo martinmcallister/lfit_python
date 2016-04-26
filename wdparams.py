@@ -5,6 +5,7 @@ import scipy.interpolate as interp
 import matplotlib.pyplot as plt
 from collections import MutableSequence
 import warnings
+import sys
 
 class wdModel(MutableSequence):
     '''wd model
@@ -62,8 +63,8 @@ def model(thisModel,mask):
     nlogg = len(loggs)
     assert t <= teffs.max()
     assert t >= teffs.min()
-    assert g >= loggs.min()
-    assert g <= loggs.max()
+    #assert g >= loggs.min()
+    #assert g <= loggs.max()
         
     abs_mags = []
     # u data in col 4, g in 5, r in 6, i in 7, z in 8, kg5 in 9
@@ -182,14 +183,9 @@ def plotFluxes(fluxes,fluxes_err,mask,model):
     # central wavelengths
     wavelengths = np.array([355.7,482.5,626.1,767.2,909.7,507.5])
     
-    #indfluxes = [0.369,0.419,0.332,0.55,0.282,0.334,0.410,0.40]
-    #indflux_errs = [0.006,0.009,0.022,0.04,0.024,0.016,0.012,0.03]
-    #wavelengths2 = [507.5,507.5,767.2,482.5,626.1,482.5,626.1,482.5]
-    
     plt.errorbar(wavelengths[mask],model_fluxes[mask],xerr=None,yerr=None,fmt='o',ls='none',color='r',capsize=3)
     plt.errorbar(wavelengths[mask],fluxes[mask],xerr=None,yerr=fluxes_err[mask],fmt='o',ls='none',color='b',capsize=3)
-    #plt.errorbar(wavelengths2,indfluxes,xerr=None,yerr=indflux_errs,fmt='o',ls='none',color='k',alpha=0.50,capsize=3)
-    #plt.xlabel('Wavelength (nm)')
+    plt.xlabel('Wavelength (nm)')
     plt.ylabel('Flux (mJy)')
     plt.savefig('fluxPlot.pdf')
     plt.show()
@@ -377,8 +373,29 @@ if __name__ == "__main__":
     else:
         b = 3
         
+    # In some circumstances, the uband eclipse has to be fit separately
+    # e.g. when it is of poor quality
+    # For this reason, a uband wd flux and error can be input manually
+    while True:
+        mode = raw_input('Add seperate u band wd flux and error? (Y/N) ')
+        if mode.upper() == 'Y' or mode.upper() == 'N':
+            break
+        else:
+            print "Please answer Y or N "
+            
+    if mode.upper() == "Y":
+        uflux_in,uflux_err_in = raw_input('Enter uband wd flux and error ').split()
+        uflux_in = float(uflux_in); uflux_err_in = float(uflux_err_in)
+        uflux = uflux_in
+        uflux_err = np.sqrt(uflux_err_in**2 + (uflux*syserr)**2)
+        fluxes[0] = uflux
+        fluxes_err[0] = uflux_err
+        umag = Flux(uflux,uflux_err,'u')
+        mags[0] = umag
+        print(uflux_in,uflux_err_in)
+    
     # For each filter, fill lists with wd fluxes from mcmc chain, then append to main array
-    '''if uband_used:
+    if uband_used:
         uband = []
         uband_filters = uband_filters[0]
         for i in uband_filters:
@@ -398,15 +415,7 @@ if __name__ == "__main__":
         fluxes_err[0] = uflux_err
         
         umag = Flux(uflux,uflux_err,'u')
-        mags[0] = umag'''
-    
-    uband_used = True
-    uflux = 0.389
-    uflux_err = np.sqrt(0.025**2 + (uflux*syserr)**2)
-    fluxes[0] = uflux
-    fluxes_err[0] = uflux_err
-    umag = Flux(uflux,uflux_err,'u')
-    mags[0] = umag
+        mags[0] = umag
        
     if gband_used:
         gband = []
@@ -428,14 +437,6 @@ if __name__ == "__main__":
         
         gmag = Flux(gflux,gflux_err,'g')
         mags[1] = gmag
-    
-    '''gband_used = True
-    gflux = 0.488
-    gflux_err = np.sqrt(0.006**2 + (gflux*syserr)**2)
-    fluxes[1] = gflux
-    fluxes_err[1] = gflux_err
-    gmag = Flux(gflux,gflux_err,'g')
-    mags[1] = gmag'''
                 
     if rband_used:
         rband = []
@@ -457,14 +458,6 @@ if __name__ == "__main__":
         
         rmag = Flux(rflux,rflux_err,'r')
         mags[2] = rmag
-    
-    '''rband_used = True
-    rflux = 0.404
-    rflux_err = np.sqrt(0.008**2 + (rflux*syserr)**2)
-    fluxes[2] = rflux
-    fluxes_err[2] = rflux_err
-    rmag = Flux(rflux,rflux_err,'r')
-    mags[2] = rmag'''
         
     if iband_used:
         iband = []
@@ -485,14 +478,6 @@ if __name__ == "__main__":
                 
         imag = Flux(iflux,iflux_err,'i')
         mags[3] = imag
-    
-    '''iband_used = True
-    iflux = 0.272
-    iflux_err = np.sqrt(0.006**2 + (iflux*syserr)**2)
-    fluxes[3] = iflux
-    fluxes_err[3] = iflux_err
-    imag = Flux(iflux,iflux_err,'i')
-    mags[3] = imag'''
               
     if zband_used:
         zband = []
@@ -513,15 +498,7 @@ if __name__ == "__main__":
         fluxes_err[4] = zflux_err
         
         zmag = Flux(zflux,zflux_err,'z')
-        mags[4] = zmag
-    
-    '''zband_used = True
-    zflux = 0.33
-    zflux_err = np.sqrt(0.006**2 + (zflux*syserr)**2)
-    fluxes[4] = zflux
-    fluxes_err[4] = zflux_err
-    zmag = Flux(zflux,zflux_err,'z')
-    mags[4] = zmag'''   
+        mags[4] = zmag 
           
     if kg5band_used:
         kg5band = []
@@ -543,14 +520,6 @@ if __name__ == "__main__":
         
         kg5mag = Flux(kg5flux,kg5flux_err,'kg5')
         mags[5] = kg5mag
-    
-    '''kg5band_used = True
-    kg5flux = 0.398
-    kg5flux_err = np.sqrt(0.005**2 + (kg5flux*syserr)**2)
-    fluxes[5] = kg5flux
-    fluxes_err[5] = kg5flux_err
-    kg5mag = Flux(kg5flux,kg5flux_err,'kg5')
-    mags[5] = kg5mag'''
         
     # Arrays containing all fluxes and errors
     fluxes = np.array(fluxes) 
@@ -560,6 +529,7 @@ if __name__ == "__main__":
     e = fluxes_err
     
     # Create mask to discard any filters that are not used
+    if mode.upper() == "Y": uband_used = True
     mask = np.array([uband_used,gband_used,rband_used,iband_used,zband_used,kg5band_used])
     
     print mask
@@ -596,6 +566,8 @@ if __name__ == "__main__":
         plt.close()
     else:
         bestPars = [par for par in myModel]
+        
+    print("Chisq = %.2f (%d D.O.F)" % (chisq(myModel,y,e,mask),(len(mags)-mags.count(0))-npars-1))
     
     # Plot color-color plot
     if mask[0]:

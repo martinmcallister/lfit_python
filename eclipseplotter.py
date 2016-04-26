@@ -2,6 +2,7 @@ from mcmc_utils import *
 import numpy as np
 import lfit
 import time
+import sys
 
 def parseInput(file):
     """Splits input file up making it easier to read"""
@@ -87,14 +88,20 @@ if __name__ == "__main__":
     if useGP:
         paramlist.extend(['ampin_gp','ampout_gp','tau_gp'])
     
-    # params for second eclipse    
-    '''chain_2 = fchain[:,18:33]
+    '''# params for second eclipse    
+    chain_2 = fchain[:,18:33]
     paramlist = ['wdFlux_1','dFlux_1','sFlux_1','rsFlux_1','rdisc_1','ulimb_1','scale_1','az_1','fis_1','dexp_1','phi0_1']
     if complex:
         paramlist.extend(['exp1_1','exp2_1','tilt_1','yaw_1'])'''
+        
+    '''# params for third eclipse    
+    chain_2 = fchain[:,33:48]
+    paramlist = ['wdFlux_2','dFlux_2','sFlux_2','rsFlux_2','rdisc_2','ulimb_2','scale_2','az_2','fis_2','dexp_2','phi0_2']
+    if complex:
+        paramlist.extend(['exp1_2','exp2_2','tilt_2','yaw_2'])'''
           
-    # params for fourth eclipse   
-    '''chain_2 = fchain[:,48:62]
+    '''# params for fourth eclipse   
+    chain_2 = fchain[:,48:62]
     paramlist = ['wdFlux_3','dFlux_3','sFlux_3','rsFlux_3','rdisc_3','ulimb_3','scale_3','az_3','fis_3','dexp_3','phi0_3']
     if complex:
         paramlist.extend(['exp1_3','exp2_3','tilt_3','yaw_3'])'''
@@ -104,7 +111,9 @@ if __name__ == "__main__":
         fig = thumbPlot(chain_2,paramlist)
         fig.savefig('cornerPlot.pdf')
         plt.close()
-                 
+    
+    sys.exit() 
+                
     for iecl in range(neclipses):
         # Read chain file
         if iecl == 0:

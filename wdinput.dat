@@ -3,9 +3,9 @@ nburn    = 100 # number of steps to use in burn-in phase
 nprod    = 100 # number of steps to use in production phase
 nwalkers = 200   # must be even multiple of npars (npars = 4)
 nthread  = 6   # number of CPU threads to use
-scatter  = 0.05 # fractional scatter to add to starting ball of parameters
+scatter  = 0.10 # fractional scatter to add to starting ball of parameters
 thin     = 1 # amount to thin MCMC chain by before calculating best fit
-fit      = 1 # actually fit (1), or just plot model as specified (0)
+fit      = 0 # actually fit (1), or just plot model as specified (0)
 
 # all model parameters have both a starting value and a prior
 # priors are specified by type, val1, val2
@@ -13,17 +13,12 @@ fit      = 1 # actually fit (1), or just plot model as specified (0)
 # if type = 'gauss', val1 and val2 represent mean and standard deviation of prior
 # if type = 'uniform' or 'log_uniform', val1 and val2 represent the limits of prior
 teff  = 13500 uniform 5000 90000.0  # WD temp
-#logg  = 7.5   uniform 7.01 9.49   # log g (model grid runs from 7 to 9p.5, so within this as minimum)
-logg = 8.178    gauss 8.178 0.020
+logg  = 7.5   uniform 7.01 9.49   # log g (model grid runs from 7 to 9.5, so within this as minimum)
+#logg = 8.085 gauss 8.085 0.03
 dist  = 500   uniform 20 5000 # distance in PC
 ebv   = 0.0009  uniform 0.0 0.121 # redenning E(B-V). If you don't know anything, should range from 0 to max galactic extinction at this position
 
-#teff  = 12295 uniform 5000 90000.0  # WD temp
-#logg  = 7.62   uniform 7.01 9.49   # log g (model grid runs from 7 to 9.5, so within this as minimum)
-#dist  = 157   uniform 20 5000 # distance in PC
-#ebv   = 0.0644  uniform 0.0 0.121
-
-syserr = 0.00 # systematic error to add to all fluxes (in %)
+syserr = 0.03 # systematic error to add to all fluxes (in %)
 
 # Number of eclipses
 neclipses = 8
@@ -32,7 +27,7 @@ neclipses = 8
 complex = 1
 
 # Gaussian processes used, yes (1) or no (0)?
-useGP = 0
+useGP = 1
 
 # Filters used
 fil_0 = kg5
@@ -44,17 +39,16 @@ fil_5 = g
 fil_6 = r
 fil_7 = g
 
-
 #fil_0 = r
 #fil_1 = g
 #fil_2 = u
 #fil_3 = kg5
 
 # Flattened chain to be input?
-flat = 1
+flat = 0
 
 # Name of chain file
-#chain = Results/SDSS1152/Pre-fit/chain.txt
-#chain = Results/CSS110113/All_eclipse_fit/chain.txt
-chain = Results/ASASSN14ag/All_eclipse_fit_noGPs_4/chain_flat.txt
+#chain = Results/SDSS1057/All_eclipse_fit_2/chain.txt
+#chain = Results/V2051Oph/Pre-fit_GPs/chain.txt
+chain = Results/ASASSN14ag/All_eclipse_fit_GPs_-9_lim/chain.txt
 #chain = Results/ASASSN14ag/Average_kg5_fit/chain.txt
