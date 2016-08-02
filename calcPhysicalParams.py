@@ -152,7 +152,6 @@ def solve(input_data,baseDir):
     solved = True
     try:
         # try wood models
-        #mw = find_wdmass(twd,scaled_mass,rw_a,baseDir,model='hamada')
         mw = find_wdmass(twd,scaled_mass,rw_a,baseDir,model='wood')
     except:
         # try panei models (usually for masses above 1 Msun)

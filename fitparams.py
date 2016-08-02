@@ -35,8 +35,7 @@ def plotMult(x,parsList,total,label):
     total   /= total.sum()
     ymin = min(ymin,total.min())
     ymax = max(ymax,total.max())
-    #cols = ['r','g','darkred','gray']
-    cols = ['r','g','b','gray','y','pink','orange','darkred']
+    cols = ['r','b','g','y','gray','pink','orange','darkred']
     i = 0
     for fit in fitList:
         axis.plot(x,fit,cols[i])
@@ -187,12 +186,10 @@ if __name__ == "__main__":
         dataList = []
         numSets = 0
         numSets = int(raw_input('How many datasets to combine? '))
-        #filters = ['r','g','i','KG5']
-        #filters = ['r','g','u','KG5']
-        filters = ['e1','e2','e3','e4','e5','e6','e7','e8']
+        eclipses = ['e1','e2','e3','e4','e5','e6','e7','e8']
         files = []
         for i in range(numSets):
-            files.append( raw_input('Give data file containing parameter samples for ' + filters[i] + ' data: ') )
+            files.append( raw_input('Give data file containing parameter samples for ' + eclipses[i] + ' data: ') )
 
         for i in range(numSets):
             dataList.append(numpy.loadtxt(files[i]))

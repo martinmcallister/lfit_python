@@ -68,18 +68,17 @@ class Model():
 		pass
 		
 	def getIndex(self,name):
-		"""Gets index (e.g. position in list) of a variable parameter"""
-		if not name in self.lookuptable:
-			raise Exception("This is not one of the variable parameters in this model")
-		return self.lookuptable.index(name)
+		"""Gets index (e.g. position in list) of a parameter"""
+		names = [p.name for p in self.plist]
+		return names.index(name)
 
 	def getValue(self,name):
-		"""Gets current value of a variable parameter"""
-		return self.pars[self.getIndex(name)].currVal
+		"""Gets current value of a parameter"""
+		return self.plist[self.getIndex(name)].currVal
 		
 	def getParam(self,name):
-		"""Gets object(?) of a variable parameter"""
-		return self.pars[self.getIndex(name)]
+		"""Gets object(?) of a parameter"""
+		return self.plist[self.getIndex(name)]
 
 class CrapCV(Model):
 	"""A totally useless model just for illustration purposes"""

@@ -336,6 +336,8 @@ class GPLCModel(LCModel):
        
         # Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has smaller amplitude than that of outside eclipse,
+        #k_in  = ampin*GP.ExpSquaredKernel(tau)
+        #k_out  = ampout*GP.ExpSquaredKernel(tau)
         k_in  = ampin*GP.Matern32Kernel(tau)
         k_out = ampout*GP.Matern32Kernel(tau)
         
@@ -449,7 +451,7 @@ if __name__ == "__main__":
         parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
     # List of values obtained from input file using fromString function from mcmc_utils.py
     parList = [Param.fromString(name, input_dict[name]) for name in parNames]
-    
+    #parList = [Param.fromString(name, input_dict[name]) for name in parNames if Param.isValid]
     # If fitting using GPs use GPLCModel, else use LCModel
     if useGP:
         model = GPLCModel(parList,complex,ampin_gp,ampout_gp,tau_gp)
@@ -549,9 +551,17 @@ if __name__ == "__main__":
         if comp_scat:
             # Scatter values need altering for certain parameters
             for i in range(0,len(p0_scatter_1)):
-                # Decrease dphi scatter by a factor of 100      
+                # Decrease dphi scatter by a factor of 10      
                 if i == model.getIndex('dphi'):
-                    p0_scatter_1[i] *= 1e-2 
+                    p0_scatter_1[i] *= 1e-1    
+                if useGP:
+                    # Increase gp hyperparams by a factor of 5
+                    if i == model.getIndex('ampin_gp'.format(ecl)):
+                        p0_scatter_1[i] *= 5
+                    if i == model.getIndex('ampout_gp'.format(ecl)):
+                        p0_scatter_1[i] *= 5
+                    if i == model.getIndex('tau_gp'.format(ecl)):
+                        p0_scatter_1[i] *= 5
                 for ecl in range(0,neclipses):
                     # Decrease limb darkening scatter by a factor of 1000000
                     if i == model.getIndex('ulimb_{0}'.format(ecl)):
@@ -561,13 +571,16 @@ if __name__ == "__main__":
                         p0_scatter_1[i] *= 5
                     # Increase disc exp by a factor of 5
                     if i == model.getIndex('dexp_{0}'.format(ecl)):
-                        p0_scatter_1[i] *= 5    
+                        p0_scatter_1[i] *= 5 
+                    # Increase phase offset by a factor of 100
+                    if i == model.getIndex('phi0_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 1e2
                     if complex:
-                        # Increase bs exponential params by a factor of 5
+                        # Increase bs exponential params by a factor of 8
                         if i == model.getIndex('exp1_{0}'.format(ecl)):
-                            p0_scatter_1[i] *= 5
+                            p0_scatter_1[i] *= 8
                         if i == model.getIndex('exp2_{0}'.format(ecl)):
-                            p0_scatter_1[i] *= 5
+                            p0_scatter_1[i] *= 8
                         # Increase bs yaw by a factor of 10
                         if i == model.getIndex('yaw_{0}'.format(ecl)):
                             p0_scatter_1[i] *= 1e1
@@ -796,9 +809,11 @@ if __name__ == "__main__":
         # Labels
         ax1.set_ylabel('Flux (mJy)')
         ax2.set_ylabel('Residuals (mJy)')
+        ax1.set_xlabel('Orbital Phase')
         ax2.set_xlabel('Orbital Phase')
         ax2.yaxis.set_major_locator(MaxNLocator(4,prune='both'))
         ax1.tick_params(axis='x',labelbottom='off')
+        ax1.set_ylim(ymin=0)
         
         for ax in plt.gcf().get_axes()[::2]:
             ax.yaxis.set_major_locator(MaxNLocator(prune='both'))

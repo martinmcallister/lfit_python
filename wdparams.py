@@ -187,6 +187,11 @@ def plotFluxes(fluxes,fluxes_err,mask,model):
     plt.errorbar(wavelengths[mask],fluxes[mask],xerr=None,yerr=fluxes_err[mask],fmt='o',ls='none',color='b',capsize=3)
     plt.xlabel('Wavelength (nm)')
     plt.ylabel('Flux (mJy)')
+    #plt.ylim(0.25,0.55)
+    #plt.xlim(300,700)
+    #frame = plt.gca()
+    #frame.xaxis.set_ticklabels([])
+    #frame.yaxis.set_ticklabels([])
     plt.savefig('fluxPlot.pdf')
     plt.show()
 
@@ -376,23 +381,24 @@ if __name__ == "__main__":
     # In some circumstances, the uband eclipse has to be fit separately
     # e.g. when it is of poor quality
     # For this reason, a uband wd flux and error can be input manually
-    while True:
-        mode = raw_input('Add seperate u band wd flux and error? (Y/N) ')
-        if mode.upper() == 'Y' or mode.upper() == 'N':
-            break
-        else:
-            print "Please answer Y or N "
+    if uband_used == False:
+        while True:
+            mode = raw_input('Add seperate u band wd flux and error? (Y/N) ')
+            if mode.upper() == 'Y' or mode.upper() == 'N':
+                break
+            else:
+                print "Please answer Y or N "
             
-    if mode.upper() == "Y":
-        uflux_in,uflux_err_in = raw_input('Enter uband wd flux and error ').split()
-        uflux_in = float(uflux_in); uflux_err_in = float(uflux_err_in)
-        uflux = uflux_in
-        uflux_err = np.sqrt(uflux_err_in**2 + (uflux*syserr)**2)
-        fluxes[0] = uflux
-        fluxes_err[0] = uflux_err
-        umag = Flux(uflux,uflux_err,'u')
-        mags[0] = umag
-        print(uflux_in,uflux_err_in)
+        if mode.upper() == "Y":
+            uflux_in,uflux_err_in = raw_input('Enter uband wd flux and error ').split()
+            uflux_in = float(uflux_in); uflux_err_in = float(uflux_err_in)
+            uflux = uflux_in
+            uflux_err = np.sqrt(uflux_err_in**2 + (uflux*syserr)**2)
+            fluxes[0] = uflux
+            fluxes_err[0] = uflux_err
+            umag = Flux(uflux,uflux_err,'u')
+            mags[0] = umag
+            print(uflux,uflux_err)
     
     # For each filter, fill lists with wd fluxes from mcmc chain, then append to main array
     if uband_used:
@@ -529,7 +535,7 @@ if __name__ == "__main__":
     e = fluxes_err
     
     # Create mask to discard any filters that are not used
-    if mode.upper() == "Y": uband_used = True
+    if 'uflux' in locals(): uband_used = True
     mask = np.array([uband_used,gband_used,rband_used,iband_used,zband_used,kg5band_used])
     
     print mask

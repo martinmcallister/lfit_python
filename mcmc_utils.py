@@ -107,7 +107,7 @@ class Param(object):
 	    priorP1   = float(fields[2])
 	    priorP2   = float(fields[3])
 	    if len(fields) == 5:
-	        isVar = bool(fields[4])
+	        isVar = bool(int(fields[4]))
 	    else:
 	        isVar = True
 	    return 	cls(name, val, Prior(priorType,priorP1,priorP2), isVar)
@@ -239,7 +239,7 @@ def run_ptmcmc_save(sampler,startPos,nSteps,file,progress=True,**kwargs):
             bar.update()
         # pos is shape (ntemps, nwalkers, npars)
         # prob is shape (ntemps, nwalkers)
-        # loop over all walkers for zero temp and append to file
+        # loop over all walkers for first temp and append to file
         zpos = pos[0,...]
         zprob = prob[0,...]
         for k in range(zpos.shape[0]):
@@ -289,6 +289,36 @@ def plotchains(chain,npar,alpha=0.2):
     for i in range(nwalkers):
         plt.plot(chain[i,:,npar],alpha=alpha,color='k')
     return fig
+    
+def GR_diagnostic(sampler_chain):
+    '''Gelman & Rubin check for convergence.'''
+    m, n, ndim = np.shape(sampler_chain)
+    R_hats = np.zeros((ndim))
+    samples = sampler_chain[:, :, :].reshape(-1, ndim)
+    for i in range(ndim):  # iterate over parameters
+        
+        # Define variables
+        chains = sampler_chain[:, :, i] 
+        
+        flat_chain = samples[:, i]
+        psi_dot_dot = np.mean(flat_chain)  
+        psi_j_dot = np.mean(chains, axis=1)
+        psi_j_t = chains
+
+        # Calculate between-chain variance
+        between = sum((psi_j_dot - psi_dot_dot)**2) / (m - 1)
+    
+        # Calculate within-chain variance
+        inner_sum = np.sum(np.array([(psi_j_t[j, :] - psi_j_dot[j])**2 for j in range(m)]), axis=1)
+        outer_sum = np.sum(inner_sum)
+        W = outer_sum / (m*(n-1))
+
+        # Calculate sigma
+        sigma2 = (n-1)/n * W + between
+
+        # Calculate convergence criterion (potential scale reduction factor)
+        R_hats[i] = (m +1)*sigma2/(m*W) - (n-1)/(m*n)
+    return R_hats
 
 def ln_marginal_likelihood(params, lnp):
     '''given a flattened chain which consists of a series
