@@ -1,3 +1,8 @@
+from __future__ import division
+from __future__ import print_function
+from builtins import input
+from builtins import range
+from builtins import object
 import numpy
 import emcee
 from mcmc_utils import *
@@ -114,7 +119,7 @@ def ln_prior(thisModel):
 def chisq(thisModel,y,e,mask):
     m = model(thisModel,mask)
     try:
-        resids = (y[mask] - m)/ e[mask]
+        resids = old_div((y[mask] - m), e[mask])
         return np.sum(resids*resids)
     except:
         return np.inf
@@ -141,8 +146,8 @@ class Flux(object):
         self.val = val
         self.err = err
         self.band = band 
-        self.mag = 2.5*numpy.log10(3631000/self.val)
-        self.magerr = 2.5*0.434*(self.err/self.val)
+        self.mag = 2.5*numpy.log10(old_div(3631000,self.val))
+        self.magerr = 2.5*0.434*(old_div(self.err,self.val))
         
 def plotFluxes(fluxes,fluxes_err,mask,model):
 
@@ -174,7 +179,7 @@ def plotFluxes(fluxes,fluxes_err,mask,model):
     # Where are these values from?? (KG5 estimated)
     
     ext       = ebv*np.array([5.155,3.793,2.751,2.086,1.479,3.5])
-    dmod      = 5.0*np.log10(d/10.0)
+    dmod      = 5.0*np.log10(old_div(d,10.0))
     app_red_mags = abs_mags + ext + dmod
     
     # calculate fluxes from model magnitudes
@@ -240,8 +245,8 @@ def plotColors(mags):
         col2e = numpy.sqrt(mags[1].magerr**2 + mags[3].magerr**2)
         col2l = mags[1].band + '-' + mags[3].band
     
-    print '%s = %f +/- %f' % (col1l,col1,col1e)
-    print '%s = %f +/- %f' % (col2l,col2,col2e)
+    print('%s = %f +/- %f' % (col1l,col1,col1e))
+    print('%s = %f +/- %f' % (col2l,col2,col2e))
 
     # now plot everthing
     for a in range(len(logg)):
@@ -328,7 +333,7 @@ if __name__ == "__main__":
     for ecl in range(0,neclipses):
         filters.append(input_dict['fil_{0}'.format(ecl)])
     filters = np.array(filters)
-    print filters
+    print(filters)
         
     # Load in chain file
     file = input_dict['chain']
@@ -383,14 +388,14 @@ if __name__ == "__main__":
     # For this reason, a uband wd flux and error can be input manually
     if uband_used == False:
         while True:
-            mode = raw_input('Add seperate u band wd flux and error? (Y/N) ')
+            mode = input('Add seperate u band wd flux and error? (Y/N) ')
             if mode.upper() == 'Y' or mode.upper() == 'N':
                 break
             else:
-                print "Please answer Y or N "
+                print("Please answer Y or N ")
             
         if mode.upper() == "Y":
-            uflux_in,uflux_err_in = raw_input('Enter uband wd flux and error ').split()
+            uflux_in,uflux_err_in = input('Enter uband wd flux and error ').split()
             uflux_in = float(uflux_in); uflux_err_in = float(uflux_err_in)
             uflux = uflux_in
             uflux_err = np.sqrt(uflux_err_in**2 + (uflux*syserr)**2)
@@ -398,7 +403,7 @@ if __name__ == "__main__":
             fluxes_err[0] = uflux_err
             umag = Flux(uflux,uflux_err,'u')
             mags[0] = umag
-            print(uflux,uflux_err)
+            print((uflux,uflux_err))
     
     # For each filter, fill lists with wd fluxes from mcmc chain, then append to main array
     if uband_used:
@@ -538,7 +543,7 @@ if __name__ == "__main__":
     if 'uflux' in locals(): uband_used = True
     mask = np.array([uband_used,gband_used,rband_used,iband_used,zband_used,kg5band_used])
     
-    print mask
+    print(mask)
     myModel = wdModel(teff,logg,dist,ebv)
     
     npars = myModel.npars
@@ -565,7 +570,7 @@ if __name__ == "__main__":
             lolim,best,uplim = np.percentile(par,[16,50,84])
             myModel[i] = best
             
-            print "%s = %f +%f -%f" % (nameList[i],best,uplim-best,best-lolim)
+            print("%s = %f +%f -%f" % (nameList[i],best,uplim-best,best-lolim))
             bestPars.append(best)
         fig = thumbPlot(chain,nameList)
         fig.savefig('cornerPlot.pdf')
