@@ -1,3 +1,6 @@
+from __future__ import print_function
+from builtins import input
+from builtins import zip
 import numpy as np
 from scipy.interpolate import interp2d, SmoothBivariateSpline, RectBivariateSpline
 
@@ -34,8 +37,8 @@ def ld (band,logg,teff,law='linear'):
         return (funca(logg,teff)[0,0],funcb(logg,teff)[0,0])        
         
 def main():
-    logg, gerr = raw_input('> Give log g and error: ').split()
-    teff, terr = raw_input('> Give eff. temp. and error: ').split()
+    logg, gerr = input('> Give log g and error: ').split()
+    teff, terr = input('> Give eff. temp. and error: ').split()
     logg = float(logg); gerr = float(gerr)
     teff = float(teff); terr = float(terr)
 
@@ -47,20 +50,20 @@ def main():
     #    ldvals.extend( ld('i',g,t) )
     for band in ['u','g','r','i','z']:
         ldvals = [ld(band,g,t) for g,t in zip(gvals,tvals)]
-        print '%s band LD coeff = %f +/- %f' % (band, np.median(ldvals),np.std(ldvals))
+        print('%s band LD coeff = %f +/- %f' % (band, np.median(ldvals),np.std(ldvals)))
 
         ldvals = [ld(band,g,t,law='quad') for g,t in zip(gvals,tvals)]
         # unpack list of tuples into two lists
-        a, b = zip(*ldvals) # use splat operator to expand list into positional arguments
-        print '%s band quad coeff a = %f +/- %f' % (band, np.median(a),np.std(a))
-        print '%s band quad coeff b = %f +/- %f' % (band, np.median(b),np.std(b))
+        a, b = list(zip(*ldvals)) # use splat operator to expand list into positional arguments
+        print('%s band quad coeff a = %f +/- %f' % (band, np.median(a),np.std(a)))
+        print('%s band quad coeff b = %f +/- %f' % (band, np.median(b),np.std(b)))
 
         ldvals = [ld(band,g,t,law='sqr') for g,t in zip(gvals,tvals)]
         # unpack list of tuples into two lists
-        a, b = zip(*ldvals) # use splat operator to expand list into positional arguments
-        print '%s band sqr coeff d = %f +/- %f' % (band, np.median(a),np.std(a))
-        print '%s band sqr coeff f = %f +/- %f' % (band, np.median(b),np.std(b))
-        print '-------------------'
+        a, b = list(zip(*ldvals)) # use splat operator to expand list into positional arguments
+        print('%s band sqr coeff d = %f +/- %f' % (band, np.median(a),np.std(a)))
+        print('%s band sqr coeff f = %f +/- %f' % (band, np.median(b),np.std(b)))
+        print('-------------------')
 
 if __name__ == "__main__":
     main()
