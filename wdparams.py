@@ -3,6 +3,7 @@ from __future__ import print_function
 from builtins import input
 from builtins import range
 from builtins import object
+from past.utils import old_div
 import numpy
 import emcee
 from mcmc_utils import *
@@ -11,6 +12,7 @@ import matplotlib.pyplot as plt
 from collections import MutableSequence
 import warnings
 import sys
+import seaborn
 
 class wdModel(MutableSequence):
     '''wd model
@@ -188,15 +190,20 @@ def plotFluxes(fluxes,fluxes_err,mask,model):
     # central wavelengths
     wavelengths = np.array([355.7,482.5,626.1,767.2,909.7,507.5])
     
-    plt.errorbar(wavelengths[mask],model_fluxes[mask],xerr=None,yerr=None,fmt='o',ls='none',color='r',capsize=3)
-    plt.errorbar(wavelengths[mask],fluxes[mask],xerr=None,yerr=fluxes_err[mask],fmt='o',ls='none',color='b',capsize=3)
-    plt.xlabel('Wavelength (nm)')
-    plt.ylabel('Flux (mJy)')
-    #plt.ylim(0.25,0.55)
+    seaborn.set(style='ticks')
+    seaborn.set_style({"xtick.direction": "in","ytick.direction": "in"})
+    
+    plt.errorbar(wavelengths[mask],model_fluxes[mask],xerr=None,yerr=None,fmt='o',ls='none',color='r',markersize=6,capsize=None)
+    plt.errorbar(wavelengths[mask],fluxes[mask],xerr=None,yerr=fluxes_err[mask],fmt='o',ls='none',color='b',markersize=6,linewidth=1,capsize=None)
+    plt.xlabel('Wavelength (nm)', fontsize=16)
+    plt.tick_params(axis='x', which='major', labelsize=14)
+    plt.ylabel('Flux (mJy)', fontsize=16)
+    plt.tick_params(axis='y', which='major', labelsize=14)
+    plt.tick_params(top='on',right='on')
     #plt.xlim(300,700)
-    #frame = plt.gca()
-    #frame.xaxis.set_ticklabels([])
-    #frame.yaxis.set_ticklabels([])
+    #plt.ylim(0.03,0.05)
+    #plt.yticks(np.arange(0.03,0.05,0.005))
+    plt.subplots_adjust(bottom=0.10, top=0.98, left=0.11, right=0.975)
     plt.savefig('fluxPlot.pdf')
     plt.show()
 
@@ -388,14 +395,14 @@ if __name__ == "__main__":
     # For this reason, a uband wd flux and error can be input manually
     if uband_used == False:
         while True:
-            mode = input('Add seperate u band wd flux and error? (Y/N) ')
+            mode = input('Add seperate u band wd flux and error? (Y/N): ')
             if mode.upper() == 'Y' or mode.upper() == 'N':
                 break
             else:
                 print("Please answer Y or N ")
             
         if mode.upper() == "Y":
-            uflux_in,uflux_err_in = input('Enter uband wd flux and error ').split()
+            uflux_in,uflux_err_in = input('Enter uband wd flux and error: ').split()
             uflux_in = float(uflux_in); uflux_err_in = float(uflux_err_in)
             uflux = uflux_in
             uflux_err = np.sqrt(uflux_err_in**2 + (uflux*syserr)**2)

@@ -338,6 +338,8 @@ class GPLCModel(LCModel):
         # Kernel inside of WD has smaller amplitude than that of outside eclipse,
         k_in  = ampin*GP.Matern32Kernel(tau)
         k_out = ampout*GP.Matern32Kernel(tau)
+        #k_in  = ampin*GP.ExpKernel(tau)
+        #k_out = ampout*GP.ExpKernel(tau)
         
         changepoints = self.calcChangepoints(phi)
         
@@ -430,7 +432,7 @@ if __name__ == "__main__":
     lc = bool(int(input_dict['lc'])) 
     
     if flat:
-        fchain = readflatchain(file)
+        chain = readflatchain(file)
     else:
         chain = readchain_dask(file)
         nwalkers, nsteps, npars = chain.shape
@@ -540,8 +542,10 @@ if __name__ == "__main__":
         if useGP:
             pars_cp += 3
         chain_cp = chain[:,0:pars_cp] 
+        #chain_cp = chain[:,pars_cp:28]
         # Create corner plot
         fig = thumbPlot(chain_cp,model.lookuptable[0:pars_cp])
+        #fig = thumbPlot(chain_cp,model.lookuptable[pars_cp:28])
         fig.savefig('cornerPlot.pdf')
         plt.close()
     # Update model with best parameters
@@ -578,7 +582,8 @@ if __name__ == "__main__":
     # Use of gridspec to help with plotting
     gs = gridspec.GridSpec(2,1,height_ratios=[2,1])
     gs.update(hspace=0.0)
-    seaborn.set()
+    seaborn.set(style='ticks')
+    seaborn.set_style({"xtick.direction": "in","ytick.direction": "in"})
 
     for iecl in range(neclipses):
         xp = x[iecl]
@@ -609,13 +614,10 @@ if __name__ == "__main__":
         ax1.plot(xf,model.cv.ys)
         ax1.plot(xf,model.cv.ywd)
         ax1.plot(xf,model.cv.yd)
-        if useGP:
-            # Plot GP
-            ax1.plot(xf,yf+fmu,color='r',linestyle='--',alpha=0.75)
                       
         # Plot fill-between region
-        # Read chain
-        # First few lines used to determine number of parameters
+        #Read chain
+        #First few lines used to determine number of parameters
         if complex:
             pars_fill = 15
         else:
@@ -657,33 +659,46 @@ if __name__ == "__main__":
             wf_2 = 0.5*np.mean(np.diff(xf_2))*np.ones_like(xf_2)
             yf_2 = CV.calcFlux(pars[i],xf_2,wf_2)
             lcs.append(yf_2)
-                
+              
         # Plot filled area    
         lcs = np.array(lcs)
         mu_2 = lcs.mean(axis=0)
         std_2 = lcs.std(axis=0)
         ax1.fill_between(xf_2,mu_2+std_2,mu_2-std_2,color='b',alpha=0.2)
-            
+           
         # Data
-        ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.5)
+        
+        if useGP:
+        	ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.2,markersize=5,linewidth=1)
+        	fmu, _ = gp.predict(res, xp)
+        	ax1.errorbar(xp,yp-fmu,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.6,markersize=5,linewidth=1)
+        else:
+        	ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.6,markersize=5,linewidth=1)
         ax2 = plt.subplot(gs[1,0],sharex=ax1)
-        ax2.errorbar(xp,yp-yp_fit,yerr=ep,color='k',fmt='.',capsize=0,alpha=0.5)
+        ax2.errorbar(xp,yp-yp_fit,yerr=ep,color='k',fmt='.',capsize=0,alpha=0.6,markersize=5,linewidth=1)
+        ax1.set_ylim(ymin=-0.0001,ymax=0.3601)
+        #ax1.set_ylim(ymin=-0.0001)
+        ax1.set_xlim(xmin=start,xmax=end)
+        ax1.tick_params(top='on',right='on')
+        ax2.tick_params(top='on',right='on')
         #ax2.set_xlim(ax1.get_xlim())
         #ax2.set_xlim(-0.1,0.12)
         if useGP:
-            ax2.fill_between(xp,mu+2.0*std,mu-2.0*std,color='r',alpha=0.4)
+            ax2.fill_between(xp,mu+1.0*std,mu-1.0*std,color='r',alpha=0.4)
 
         # Labels
-        ax1.set_ylabel('Flux (mJy)')
-        ax2.set_ylabel('Residuals (mJy)')
-        ax1.set_xlabel('Orbital Phase')
-        ax2.set_xlabel('Orbital Phase')
+        ax1.set_ylabel('Flux (mJy)', fontsize=15)
+        ax2.set_ylabel('Residuals (mJy)', fontsize=15)
+        ax1.set_xlabel('Orbital Phase', fontsize=15)
+        ax2.set_xlabel('Orbital Phase', fontsize=15)
         ax2.yaxis.set_major_locator(MaxNLocator(4,prune='both'))
-        ax1.tick_params(axis='x',labelbottom='off')
-        ax1.set_ylim(ymin=0)
+        ax1.tick_params(axis='both',labelbottom='off',labelsize=14,top='on',right='on')
+        ax2.tick_params(axis='both',labelsize=14,top='on',right='on')
         
         for ax in plt.gcf().get_axes()[::2]:
             ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
+            
+        plt.subplots_adjust(bottom=0.095, top=0.965, left=0.12, right=0.975)
         
         # Save plot images
         plt.savefig(output_plots[iecl])

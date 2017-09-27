@@ -6,16 +6,17 @@ import pandas as pd
 import emcee
 import dask.dataframe as dd
 import dask.array as da
-#from dask.multiprocessing import get
-#from dask.diagnostics import ProgressBar
-try:
+from dask.multiprocessing import get
+from dask.diagnostics import ProgressBar
+import seaborn
+'''try:
     import triangle
     # This triangle should have a method corner                                 
     # There are two python packages with conflicting names                      
     getattr(triangle,"corner")
 except AttributeError:
-    # We want the other package                                               
-    import corner as triangle
+    # We want the other package '''                                           
+import corner as triangle
     
 # lightweight progress bar
 from tqdm import tqdm
@@ -120,7 +121,9 @@ def fracWithin(pdf,val):
 	return pdf[pdf>=val].sum()
 
 def thumbPlot(chain,labels,**kwargs):
-    fig = triangle.corner(chain,labels=labels,**kwargs)
+    seaborn.set(style='ticks')
+    seaborn.set_style({"xtick.direction": "in","ytick.direction": "in"})
+    fig = triangle.corner(chain,labels=labels,bins=50,label_kwargs=dict(fontsize=18),**kwargs)
     return fig
 
 def scatterWalkers(pos0,percentScatter):

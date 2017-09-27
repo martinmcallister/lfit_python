@@ -151,15 +151,16 @@ class LCModel(Model):
         
         # rdisc 
         try:
+            maxrdisc_a = 0.46 # Maximum size disc can reach before precessing
             xl1 = roche.xl1(q.currVal) # xl1/a
-            maxrdisc = 0.46/xl1 # Maximum size disc can reach before precessing
             # rdisc is unique to each eclipse, so have to use slightly different method to 
             # obtain its object, compared to q and dphi which are shared parameters
             rdiscTemplate = 'rdisc_{0}'
             for iecl in range(self.necl):
                 rdisc = self.getParam(rdiscTemplate.format(iecl))
+                rdisc_a = rdisc.currVal*xl1 # rdisc/a
                 # rdisc cannot be greater than maxrdisc
-                if rdisc.currVal > maxrdisc:
+                if rdisc_a > maxrdisc_a:
                     retVal += -np.inf
                 
         except:
@@ -340,6 +341,8 @@ class GPLCModel(LCModel):
         #k_out  = ampout*GP.ExpSquaredKernel(tau)
         k_in  = ampin*GP.Matern32Kernel(tau)
         k_out = ampout*GP.Matern32Kernel(tau)
+        #k_in  = ampin*GP.ExpKernel(tau)
+        #k_out = ampout*GP.ExpKernel(tau)
         
         changepoints = self.calcChangepoints(phi)
         
@@ -551,39 +554,63 @@ if __name__ == "__main__":
         if comp_scat:
             # Scatter values need altering for certain parameters
             for i in range(0,len(p0_scatter_1)):
-                # Decrease dphi scatter by a factor of 10      
+            	
+            	# Increase q scatter by a factor of 2 
+                if i == model.getIndex('q'):
+                    p0_scatter_1[i] *= 2
+                # Decrease dphi scatter by a factor of 5      
                 if i == model.getIndex('dphi'):
-                    p0_scatter_1[i] *= 1e-1    
-                if useGP:
-                    # Increase gp hyperparams by a factor of 5
-                    if i == model.getIndex('ampin_gp'.format(ecl)):
-                        p0_scatter_1[i] *= 5
-                    if i == model.getIndex('ampout_gp'.format(ecl)):
-                        p0_scatter_1[i] *= 5
-                    if i == model.getIndex('tau_gp'.format(ecl)):
-                        p0_scatter_1[i] *= 5
+                    p0_scatter_1[i] *= 2e-1 
+                
                 for ecl in range(0,neclipses):
+                
+                    # Increase disc flux by a factor of 2
+                    if i == model.getIndex('dFlux_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 2
+                    # Increase bs flux by a factor of 2
+                    if i == model.getIndex('sFlux_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 2
+                    # Increase donor flux by a factor of 2
+                    if i == model.getIndex('rsFlux_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 2
+                        
+                    # Increase disc rad by a factor of 2
+                    if i == model.getIndex('rdisc_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 2 
+                        
                     # Decrease limb darkening scatter by a factor of 1000000
                     if i == model.getIndex('ulimb_{0}'.format(ecl)):
                         p0_scatter_1[i] *= 1e-6
-                    # Increase bs scale by a factor of 5
+                    # Increase bs scale by a factor of 3
                     if i == model.getIndex('scale_{0}'.format(ecl)):
-                        p0_scatter_1[i] *= 5
-                    # Increase disc exp by a factor of 5
+                        p0_scatter_1[i] *= 3
+                    # Increase iso frac by a factor of 3
+                    if i == model.getIndex('fis_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 3
+                    # Increase disc exp by a factor of 3
                     if i == model.getIndex('dexp_{0}'.format(ecl)):
-                        p0_scatter_1[i] *= 5 
-                    # Increase phase offset by a factor of 100
+                        p0_scatter_1[i] *= 3
+                    # Increase phase offset by a factor of 20
                     if i == model.getIndex('phi0_{0}'.format(ecl)):
-                        p0_scatter_1[i] *= 1e2
+                        p0_scatter_1[i] *= 2e1
+                        
+                    # Increase az by a factor of 2
+                    if i == model.getIndex('az_{0}'.format(ecl)):
+                        p0_scatter_1[i] *= 2
+                        
                     if complex:
-                        # Increase bs exponential params by a factor of 8
+                        # Increase bs exponential params by a factor of 5
                         if i == model.getIndex('exp1_{0}'.format(ecl)):
-                            p0_scatter_1[i] *= 8
+                            p0_scatter_1[i] *= 5
                         if i == model.getIndex('exp2_{0}'.format(ecl)):
-                            p0_scatter_1[i] *= 8
+                            p0_scatter_1[i] *= 5
                         # Increase bs yaw by a factor of 10
                         if i == model.getIndex('yaw_{0}'.format(ecl)):
                             p0_scatter_1[i] *= 1e1
+                            
+                    	# Increase bs tilt by a factor of 2
+                    	if i == model.getIndex('tilt_{0}'.format(ecl)):
+                        	p0_scatter_1[i] *= 2
         
         # Create second scatter array for second burnin
         p0_scatter_2 = p0_scatter_1*(scatter_2/scatter_1)
@@ -713,7 +740,8 @@ if __name__ == "__main__":
     # Use of gridspec to help with plotting
     gs = gridspec.GridSpec(2,1,height_ratios=[2,1])
     gs.update(hspace=0.0)
-    seaborn.set()
+    seaborn.set(style='ticks')
+    seaborn.set_style({"xtick.direction": "in","ytick.direction": "in"})
 
     for iecl in range(neclipses):
         xp = x[iecl]
@@ -722,6 +750,7 @@ if __name__ == "__main__":
         wp = w[iecl]
            
         xf = np.linspace(xp.min(),xp.max(),1000)
+        #xf = np.linspace(-0.9,0.9,1000)
         wf = 0.5*np.mean(np.diff(xf))*np.ones_like(xf)
         yp_fit = model.calc(iecl,xp,wp)
         yf = model.calc(iecl,xf,wf)
@@ -745,9 +774,7 @@ if __name__ == "__main__":
         ax1.plot(xf,model.cv.ywd)
         ax1.plot(xf,model.cv.yd)
         if useGP:
-            # Plot GP
-            ax1.plot(xf,yf+fmu,color='r',linestyle='--',alpha=0.75)
-                      
+                 
             # Plot fill-between region
             if toFit:
                 # Read chain
@@ -798,25 +825,37 @@ if __name__ == "__main__":
                 plt.fill_between(xf_2,mu_2+std_2,mu_2-std_2,color='b',alpha=0.2)
             
         # Data
-        ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.5)
+        if useGP:
+        	ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.2,markersize=5,linewidth=1)
+        	fmu, _ = gp.predict(res, xp)
+        	ax1.errorbar(xp,yp-fmu,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.6,markersize=5,linewidth=1)
+        else:
+        	ax1.errorbar(xp,yp,yerr=ep,fmt='.',color='k',capsize=0,alpha=0.6,markersize=5,linewidth=1)
         ax2 = plt.subplot(gs[1,0],sharex=ax1)
-        ax2.errorbar(xp,yp-yp_fit,yerr=ep,color='k',fmt='.',capsize=0,alpha=0.5)
+        ax2.errorbar(xp,yp-yp_fit,yerr=ep,color='k',fmt='.',capsize=0,alpha=0.6,markersize=5,linewidth=1)
+        ax1.set_ylim(ymin=0)
+        #ax1.set_ylim(ymin=-0.0001)
+        ax1.set_xlim(xmin=start,xmax=end)
+        ax1.tick_params(top='on',right='on')
+        ax2.tick_params(top='on',right='on')
         #ax2.set_xlim(ax1.get_xlim())
         #ax2.set_xlim(-0.1,0.12)
         if useGP:
-            ax2.fill_between(xp,mu+2.0*std,mu-2.0*std,color='r',alpha=0.4)
+            ax2.fill_between(xp,mu+1.0*std,mu-1.0*std,color='r',alpha=0.4)
 
         # Labels
-        ax1.set_ylabel('Flux (mJy)')
-        ax2.set_ylabel('Residuals (mJy)')
-        ax1.set_xlabel('Orbital Phase')
-        ax2.set_xlabel('Orbital Phase')
+        ax1.set_ylabel('Flux (mJy)', fontsize=15)
+        ax2.set_ylabel('Residuals (mJy)', fontsize=15)
+        ax1.set_xlabel('Orbital Phase', fontsize=15)
+        ax2.set_xlabel('Orbital Phase', fontsize=15)
         ax2.yaxis.set_major_locator(MaxNLocator(4,prune='both'))
-        ax1.tick_params(axis='x',labelbottom='off')
-        ax1.set_ylim(ymin=0)
+        ax1.tick_params(axis='both',labelbottom='off',labelsize=14)
+        ax2.tick_params(axis='both',labelsize=14)
         
         for ax in plt.gcf().get_axes()[::2]:
             ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
+            
+        plt.subplots_adjust(bottom=0.095, top=0.965, left=0.12, right=0.975)
         
         # Save plot images
         plt.savefig(output_plots[iecl])

@@ -1,22 +1,27 @@
 # MCMC run parameters
-nburn    = 100 # number of steps to use in burn-in phase
+nburn    = 300 # number of steps to use in burn-in phase
 nprod    = 100 # number of steps to use in production phase
 nwalkers = 200   # must be even multiple of npars (npars = 4)
 nthread  = 6   # number of CPU threads to use
 scatter  = 0.10 # fractional scatter to add to starting ball of parameters
 thin     = 1 # amount to thin MCMC chain by before calculating best fit
-fit      = 1 # actually fit (1), or just plot model as specified (0)
+fit      = 0 # actually fit (1), or just plot model as specified (0)
 
 # all model parameters have both a starting value and a prior
 # priors are specified by type, val1, val2
 # type can be one of 'gauss', 'uniform' or 'log_uniform'
 # if type = 'gauss', val1 and val2 represent mean and standard deviation of prior
 # if type = 'uniform' or 'log_uniform', val1 and val2 represent the limits of prior
-teff  = 13500 uniform 5000 90000.0  # WD temp
+#teff  = 13500 uniform 5000 90000.0  # WD temp
 #logg  = 7.5   uniform 7.01 9.49   # log g (model grid runs from 7 to 9.5, so within this as minimum)
-logg = 7.95 gauss 7.95 0.03
-dist  = 500   uniform 20 5000 # distance in PC
-ebv   = 0.01  uniform 0.0 0.0168 # redenning E(B-V). If you don't know anything, should range from 0 to max galactic extinction at this position
+#logg = 8.307 gauss 8.307 0.018
+#dist  = 500   uniform 20 5000 # distance in PC
+#ebv   = 0.01  uniform 0.00 0.021 # redenning E(B-V). If you don't know anything, should range from 0 to max galactic extinction at this position
+
+teff  = 13282.879632 uniform 5000 90000.0  # WD temp
+logg = 8.304574  gauss 8.11 0.04
+dist  = 366.543016    uniform 20 5000 # distance in PC
+ebv   = 0.010622   uniform 0.00 0.0389 # redenning E(B-V). If you don't know anything, should range from 0 to max galactic extinction at this position
 
 syserr = 0.03 # systematic error to add to all fluxes (in %)
 
@@ -24,7 +29,7 @@ syserr = 0.03 # systematic error to add to all fluxes (in %)
 neclipses = 4
 
 # Complex bright spot used, yes (1) or no (0)?
-complex = 1
+complex = 0
 
 # Gaussian processes used, yes (1) or no (0)?
 useGP = 1
@@ -39,16 +44,41 @@ useGP = 1
 #fil_6 = r
 #fil_7 = g
 
+#fil_0 = i
+#fil_1 = r
+#fil_2 = g
+#fil_3 = g
+#fil_4 = g
+#fil_5 = u
+
+#fil_0 = i
+#fil_1 = r
+#fil_2 = g
+#fil_3 = g
+#fil_4 = u
+
 fil_0 = r
 fil_1 = g
 fil_2 = u
 fil_3 = kg5
 
+#fil_0 = r
+#fil_1 = g
+#fil_2 = g
+#fil_3 = g
+#fil_4 = u
+
+#fil_0 = r
+#fil_1 = g
+#fil_2 = u
+
 # Flattened chain to be input?
 flat = 0
 
 # Name of chain file
-#chain = Results/DVUMa/All_eclipse_fit_GPs_2/chain.txt
-#chain = Results/V713Cep/2013_fit_simple/chain.txt
-chain = Results/SDSS1152/Pre-fit_GPs/chain.txt
-#chain = Results/ASASSN14ag/Average_kg5_fit/chain.txt
+#chain = Results/ZCha/All_eclipse_fit_GPs_used/chain.txt
+#chain = Results/SDSS1501/All_eclipse_fit_GPs_2/chain.txt
+#chain = Results/CTCV1300/All_eclipse_fit_GPs_2/chain.txt
+#chain = Results/OYCar/All_eclipse_fit_GPs_used/chain.txt
+chain = Results/SDSS1057/All_eclipse_fit_GPs_used/chain.txt
+#chain = Results/ASASSN14ag/All_eclipse_fit_GPs_revisited/chain_flat.txt

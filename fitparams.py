@@ -5,6 +5,12 @@ from mcmc_utils import *
 import scipy.stats
 import numpy
 import matplotlib.pyplot as plt
+import seaborn
+
+seaborn.set(style='ticks')
+seaborn.set_style({"xtick.direction": "in","ytick.direction": "in", \
+    "xtick.major.size": 4.0,"ytick.major.size": 4.0})
+
 
 def logg(m,r):
     MSUN = 1.9891e+30
@@ -36,14 +42,17 @@ def plotMult(x,parsList,total,label):
     ymin = min(ymin,total.min())
     ymax = max(ymax,total.max())
     cols = ['r','b','g','y','gray','pink','orange','darkred']
+    #cols = ['y','orange','darkred']
     i = 0
     for fit in fitList:
-        axis.plot(x,fit,cols[i])
+        axis.plot(x,fit,cols[i],linewidth=1)
         i += 1
-    axis.plot(x,total,'k')
-    axis.text(0.98,0.8,label,transform=axis.transAxes,horizontalalignment='right')
+    #axis.plot(x,total,'k',linewidth=1)
+    axis.text(0.98,0.75,label,transform=axis.transAxes,horizontalalignment='right')
     axis.yaxis.set_ticklabels([])
-    axis.tick_params(axis='x', which='major', labelsize=6)
+    axis.set_ylim(ymin=0)
+    axis.tick_params(axis='x', which='major', labelsize=7, pad=2.5)
+    axis.tick_params(top='on',right='on')
     plotMult.axindex += 1
 # add fig, axs objects to plotMult function for plot incrementing
 plotMult.fig, plotMult.axs = plt.subplots(5,2)
@@ -62,11 +71,13 @@ def plot(array,label,params):
     rowIndex = plot.axindex % 5
     colIndex = int(numpy.floor(plot.axindex / 5))
     axis = plot.axs[rowIndex,colIndex]
-    axis.plot(x,yFit,'k')
-    axis.step(x,y,where='mid',color='k')
-    axis.text(0.98,0.8,label,transform=axis.transAxes,horizontalalignment='right')
+    axis.plot(x,yFit,'k',linewidth=1)
+    axis.step(x,y,where='mid',color='k',linewidth=1)
+    axis.text(0.98,0.75,label,transform=axis.transAxes,horizontalalignment='right')
     axis.yaxis.set_ticklabels([])
-    axis.tick_params(axis='x', which='major', labelsize=6)
+    axis.set_ylim(ymin=0)
+    axis.tick_params(axis='x', which='major', labelsize=7, pad=2.5)
+    axis.tick_params(top='on',right='on')
     plot.axindex += 1
 plot.fig, plot.axs = plt.subplots(5,2)
 plot.fig.delaxes(plot.axs[4,1])
@@ -125,8 +136,9 @@ if __name__ == "__main__":
     fitfunc = lambda p, x: p[3]*numpy.exp( -(x-p[0])**2/2.0/p[1] ) * (1+ erf(p[2]*(x-p[0])/numpy.sqrt(p[1]*2)) )
     errfunc = lambda p, x, y: y - fitfunc(p, x)
 
+    '''
     paramList = [Param('q',r'${\rm Mass\ Ratio\ } (q)$',0),
-                 Param('m1',r'$M_w (M_{\odot})$',1),
+                 Param('m1',r'$M_w (\M_{\odot})$',1),
                  Param('r1',r'$R_w (R_{\odot})$',2),
                  Param('m2',r'$M_d (M_{\odot})$',3),
                  Param('r2',r'$R_d (R_{\odot})$',4),
@@ -135,6 +147,18 @@ if __name__ == "__main__":
                  Param('kw',r'$K_w ({\rm km\ s}^{-1})$',6),
                  Param('kr',r'$K_d ({\rm km\ s}^{-1})$',7),
                  Param('logg',r'${\rm log\ g\ }$',9)]
+    '''
+                 
+    paramList = [Param('q',r'$q\ $ ',0),
+                 Param('m1',r'$M_1\ (\rm{M}_{\odot})$',1),
+                 Param('r1',r'$R_1\ (\rm{R}_{\odot})$',2),
+                 Param('m2',r'$M_2\ (\rm{M}_{\odot})$',3),
+                 Param('r2',r'$R_2\ (\rm{R}_{\odot})$',4),
+                 Param('i',r'$i\ (^{\rm{o}})$',8),
+                 Param('a',r'$a\ (\rm{R}_{\odot})$',5),
+                 Param('k1',r'$K_1\ ({\rm km\ s}^{-1})$',6),
+                 Param('k2',r'$K_2\ (\rm {km\ s}^{-1})$',7),
+                 Param('logg',r'$\rm{log}\ g$',9)]            
 
     while True:
         mode = raw_input('(S)ingle dataset or (M)ultiple datasets? ')
@@ -147,9 +171,14 @@ if __name__ == "__main__":
     if mode.upper() == "S":
         asciiFile = raw_input('Give data file containing parameter samples: ')
         dataIn = numpy.loadtxt(asciiFile)
+        '''
         params = ['Mass Ratio ($q$)','$M_w (M_{\odot})$','$R_w (R_{\odot})$', \
         '$M_d (M_{\odot})$','$R_d (R_{\odot})$','Separation $(R_{\odot})$', \
         '$K_w$ (km s$^{-1}$)','$K_d$ (km s$^{-1}$)','Inclination (deg)']
+        '''
+        params = [r'$q$',r'$M_1\ (\rm M_{\odot})$',r'$R_1\ (\rm R_{\odot})$', \
+        r'$M_2\ (\rm M_{\odot})$',r'$R_2\ (\rm R_{\odot})$',r'$a\ (\rm R_{\odot})$', \
+        r'$K_1\ ({\rm km\ s}^{-1})$',r'$K_2\ (\rm {km\ s}^{-1})$',r'$i\ (^{\rm{o}})$']
         cornerplot = thumbPlot(dataIn,params)
         cornerplot.savefig('cornerPlot.pdf')
         i = 0
@@ -167,12 +196,12 @@ if __name__ == "__main__":
             if i == 1:
                 maxloc = result.argmax()
                 m = x[maxloc]
-                m_poserr = m - percentile(x,result,0.84)
+                m_poserr = percentile(x,result,0.84) - m
                 m_negerr = m - percentile(x,result,0.16)
             if i == 2:
                 maxloc = result.argmax()
                 r = x[maxloc]
-                r_poserr = r - percentile(x,result,0.84)
+                r_poserr = percentile(x,result,0.84) - r
                 r_negerr = r - percentile(x,result,0.16)
             i += 1
         plt.close(plot.fig)
