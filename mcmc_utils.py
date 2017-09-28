@@ -65,7 +65,7 @@ class Prior(object):
         if self.type == 'gauss':
             prob = stats.norm(scale=self.p2, loc=self.p1).pdf(val)
             if prob > 0:
-                return np.log()
+                return np.log(prob)
             else:
                 return TINY
         elif self.type == 'gaussPos':
